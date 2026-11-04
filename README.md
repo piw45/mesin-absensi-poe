@@ -206,7 +206,7 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 
 ---
 
-## 7. SOP Perakitan & Kalibrasi Tegangan
+## 7. SOP Perakitan & Kalibrasi Tegangan (Visual Step-by-Step)
 
 > [!CAUTION]
 > **PERINGATAN KRUSIAL SEBELUM MENYALAKAN PERANGKAT:**
@@ -216,6 +216,26 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 > 4. Ukur titik pin `+5V` atau kaki katoda `D5` terhadap `GND` dengan multimeter digital.
 > 5. Putar trimpot obeng minus pada modul XL7015 berlawanan arah jarum jam hingga tegangan terukur **tepat 5.00V DC (±0.05V)**.
 > 6. Setelah tegangan terkalibrasi aman pada 5.00V, cabut kabel LAN, baru tancapkan ESP32 DevKit ke soketnya.
+
+### Panduan Wiring Point-to-Point (Sesuai Komponen Fisik ESP32 30-Pin USB Type-C, AS608 8-Pin, OLED 0.91", Buzzer & W5500):
+
+#### Step 1: Rakit Dioda Bridge, Resistor 25k & Kalibrasi XL7015 ke 5.00V
+![Step 1 Kalibrasi XL7015](step1_kalibrasi_xl7015.png)
+
+#### Step 2: Pasang 4 Kabel Layar OLED 0.91" (`SDA, SCK, VCC, GND`) ke ESP32
+![Step 2 Wiring OLED](step2_wiring_oled.png)
+
+#### Step 3: Pasang Kabel Sensor Sidik Jari AS608 (Soket 8-Pin) ke ESP32
+![Step 3 Wiring Fingerprint AS608](step3_wiring_fingerprint_as608.png)
+
+#### Step 4: Pasang Buzzer 3.3V, Resistor 1k & Dioda Flyback ke ESP32
+![Step 4 Wiring Buzzer](step4_wiring_buzzer.png)
+
+#### Step 5: Pasang Modul Ethernet W5500 Biru (10-Pin Header Kuning) ke ESP32
+![Step 5 Wiring W5500](step5_wiring_w5500.png)
+
+#### Step 6: Sambungkan Daya 5.00V XL7015 ke Pin `VIN` & `GND` ESP32
+![Step 6 Wiring Power Lengkap](step6_wiring_power_lengkap.png)
 
 ---
 
