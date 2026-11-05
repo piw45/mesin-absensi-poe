@@ -267,10 +267,10 @@ def make_step2():
     lbls = []
 
     d.rectangle([0, 0, W, 90], fill=(29, 78, 216))
-    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE ESP32 (SESUAI FOTO IMG_7735 & IMG_7736)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 53), "Di foto IMG_7736, tulisan di layar OLED Anda adalah: SDA, SCK, VCC, GND. Semua 4 kabel masuk ke sisi KANAN ESP32!", fill=(219, 234, 254), font=get_font(17, bold=True))
+    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE ESP32 (SISI KIRI: D25 & D26 - RAPI SEIMBANG)", fill=(255, 255, 255), font=get_font(26, bold=True))
+    d.text((35, 53), "Kabel data OLED dipindah ke SISI KIRI (D25 SDA, D26 SCL) agar sisi kanan tidak menumpuk dengan W5500!", fill=(219, 234, 254), font=get_font(17, bold=True))
 
-    esp_coords = draw_esp32(d, 90, 130, active_left=[], active_right=["D4", "D2", "GND_R", "3V3"])
+    esp_coords = draw_esp32(d, 90, 130, active_left=["D25", "D26", "GND_L"], active_right=["3V3"])
 
     ox, oy = 1020, 220
     ow, oh = 520, 340
@@ -278,10 +278,9 @@ def make_step2():
     d.rounded_rectangle([ox+130, oy+35, ox+ow-30, oy+oh-35], radius=8, fill=(10, 15, 25), outline=(56, 189, 248), width=3)
     d.text((ox+165, oy+95), "OLED 0.91\" BIRU", fill=(56, 189, 248), font=get_font(28, bold=True))
     d.text((ox+165, oy+140), "(Sesuai Foto IMG_7736)", fill=(250, 204, 21), font=get_font(19, bold=True))
-    d.text((ox+165, oy+180), "Solder dulu 4 pin header", fill=(255, 255, 255), font=get_font(16, bold=True))
-    d.text((ox+165, oy+205), "ke 4 lubang emas OLED!", fill=(255, 255, 255), font=get_font(16, bold=True))
+    d.text((ox+165, oy+180), "I2C SDA: D25 | SCL: D26", fill=(255, 255, 255), font=get_font(16, bold=True))
+    d.text((ox+165, oy+205), "Rapi di Sisi Kiri ESP32!", fill=(255, 255, 255), font=get_font(16, bold=True))
 
-    # Urutan persis foto IMG_7736: SDA, SCK, VCC, GND
     oled_pins = [
         ("SDA", oy+65),
         ("SCK", oy+135),
@@ -294,52 +293,56 @@ def make_step2():
         d.text((ox+55, py-12), pname, fill=(255, 255, 255), font=get_font(21, bold=True, mono=True))
         oled_pts[pname] = (ox+15, py)
 
-    # All 4 pins connect cleanly to the RIGHT side of ESP32 (D4, D2, GND_R, 3V3)!
-    # 1. SDA -> D4 (Right pin 11, y=510)
+    # 1. SDA -> D25 (Sisi Kiri No. 8 dari Atas)
     draw_wire(d, [
         oled_pts["SDA"],
-        (560, oled_pts["SDA"][1]),
-        (560, esp_coords["D4"][1]),
-        esp_coords["D4"]
-    ], (16, 185, 129), width=7, label="1. Pin SDA OLED  --->  Pin D4 ESP32 (Kanan No. 5 dari Bawah)", label_pos=(540, 240), labels_queue=lbls)
+        (940, oled_pts["SDA"][1]),
+        (940, 105),
+        (55, 105),
+        (55, esp_coords["D25"][1]),
+        esp_coords["D25"]
+    ], (16, 185, 129), width=7, label="1. Pin SDA OLED  --->  Pin D25 ESP32 (Sisi Kiri No. 8 dari Atas)", label_pos=(520, 95), labels_queue=lbls)
 
-    # 2. SCK -> D2 (Right pin 12, y=541)
+    # 2. SCK / SCL -> D26 (Sisi Kiri No. 9 dari Atas)
     draw_wire(d, [
         oled_pts["SCK"],
-        (630, oled_pts["SCK"][1]),
-        (630, esp_coords["D2"][1]),
-        esp_coords["D2"]
-    ], (37, 99, 235), width=7, label="2. Pin SCK OLED  --->  Pin D2 ESP32 (Kanan No. 4 dari Bawah)", label_pos=(540, 310), labels_queue=lbls)
+        (900, oled_pts["SCK"][1]),
+        (900, 118),
+        (45, 118),
+        (45, esp_coords["D26"][1]),
+        esp_coords["D26"]
+    ], (37, 99, 235), width=7, label="2. Pin SCK / SCL OLED  --->  Pin D26 ESP32 (Sisi Kiri No. 9 dari Atas)", label_pos=(520, 140), labels_queue=lbls)
 
-    # 3. VCC -> 3V3 (Right pin 15, bottom-right! y=634)
+    # 3. VCC -> 3V3 (Kanan Paling Bawah)
     draw_wire(d, [
         oled_pts["VCC"],
-        (770, oled_pts["VCC"][1]),
-        (770, esp_coords["3V3"][1]),
+        (850, oled_pts["VCC"][1]),
+        (850, esp_coords["3V3"][1]),
         esp_coords["3V3"]
-    ], (220, 38, 38), width=7, label="3. Pin VCC OLED  --->  Pin 3V3 ESP32 (Kanan PALING BAWAH / No. 15)", label_pos=(540, 622), labels_queue=lbls)
+    ], (220, 38, 38), width=7, label="3. Pin VCC OLED  --->  Pin 3V3 ESP32 (Kanan PALING BAWAH / No. 15)", label_pos=(520, 622), labels_queue=lbls)
 
-    # 4. GND -> GND_R (Right pin 14, 2nd from bottom-right! y=603)
+    # 4. GND -> GND_L (Kiri No. 2 dari Bawah)
     draw_wire(d, [
         oled_pts["GND"],
-        (700, oled_pts["GND"][1]),
-        (700, esp_coords["GND_R"][1]),
-        esp_coords["GND_R"]
-    ], (30, 41, 59), width=7, label="4. Pin GND OLED  --->  Pin GND ESP32 (Kanan No. 2 dari Bawah / Atasnya 3V3)", label_pos=(540, 565), labels_queue=lbls)
+        (800, oled_pts["GND"][1]),
+        (800, 920),
+        (65, 920),
+        (65, esp_coords["GND_L"][1]),
+        esp_coords["GND_L"]
+    ], (30, 41, 59), width=7, label="4. Pin GND OLED  --->  Pin GND ESP32 (Kiri No. 2 dari Bawah)", label_pos=(520, 905), labels_queue=lbls)
 
     flush_labels(d, lbls)
 
-    d.rounded_rectangle([520, 685, 1550, 965], radius=14, fill=(254, 249, 195), outline=(202, 138, 4), width=3)
-    d.text((545, 705), "TEMUAN PENTING DARI FOTO IMG_7735 & IMG_7736 MILIKMU:", fill=(185, 28, 28), font=get_font(20, bold=True))
+    d.rounded_rectangle([520, 685, 1550, 965], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
+    d.text((545, 705), "SKEMA PIN BARU (SEIMBANG KIRI-KANAN):", fill=(22, 101, 52), font=get_font(20, bold=True))
     tips = [
-        "1. Di foto IMG_7735, pin 3V3 ESP32 Anda berada di POJOK KANAN PALING BAWAH (bukan di kiri atas!).",
-        "   Jadi semua 4 kabel OLED ini sangat rapi karena semuanya dicolok ke deretan KANAN BAWAH ESP32.",
-        "2. Di foto IMG_7736, layar OLED Anda belum disolder pin-nya. Solder dulu 4 pin header ke lubang",
-        "   SDA, SCK, VCC, GND pada layar OLED sebelum mencolokkan kabel jumper.",
-        "3. Tulisan 'SCK' pada layar OLED Anda itu sama artinya dengan 'SCL' (jalur Clock), sambungkan ke D2."
+        "1. KABEL DATA I2C PINDAH KE SISI KIRI: SDA ke D25, SCL ke D26 (GPIO Matrix ESP32).",
+        "2. Di kode Arduino: Cukup gunakan 'Wire.begin(25, 26);' (SDA=25, SCL=26).",
+        "3. Sisi Kanan sekarang bersih dan khusus disediakan untuk jalur modul Ethernet W5500.",
+        "4. Tulisan 'SCK' pada papan OLED Anda sama artinya dengan 'SCL' (Clock I2C)."
     ]
     for i, t in enumerate(tips):
-        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,2,4])))
+        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,1])))
 
     save_both(img, "step2_wiring_oled.png")
 
@@ -354,10 +357,10 @@ def make_step3():
     lbls = []
 
     d.rectangle([0, 0, W, 95], fill=(185, 28, 28))
-    d.text((35, 12), "STEP 3: KABEL SENSOR SIDIK JARI AS608 (SESUAI FOTO IMG_7733 & IMG_7734!)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 50), "URUTAN DARI PIN V+: COKLAT, ORANYE, PUTIH, BIRU, HIJAU, KUNING, HITAM, MERAH", fill=(254, 240, 138), font=get_font(16, bold=True))
+    d.text((35, 12), "STEP 3: KABEL SENSOR AS608 KE SISI KIRI ESP32 (D32, D33, D35 - RAPI SEIMBANG)", fill=(255, 255, 255), font=get_font(26, bold=True))
+    d.text((35, 50), "Kabel data Sensor Sidik Jari dipindah ke SISI KIRI (D32 RX2, D33 TX2) berdampingan dengan Pin Sentuh D35!", fill=(254, 240, 138), font=get_font(16, bold=True))
 
-    esp_coords = draw_esp32(d, 90, 140, active_left=["D35", "GND_L"], active_right=["D17", "D16", "3V3"])
+    esp_coords = draw_esp32(d, 90, 140, active_left=["D35", "D32", "D33", "GND_L"], active_right=["3V3"])
 
     fx, fy = 1010, 140
     fw, fh = 550, 510
@@ -367,11 +370,10 @@ def make_step3():
 
     d.rounded_rectangle([fx+20, fy+70, fx+530, fy+490], radius=10, fill=(248, 250, 252), outline=(148, 163, 184), width=3)
 
-    # Urutan kabel dari V+: coklat, oranye, putih, biru, hijau, kuning, hitam, merah.
     fp_pins = [
         ("P1", "Pin 1 [V+]  -> Kabel COKLAT (+3.3V Utama)",     fy+100, (120, 53, 15)),
-        ("P2", "Pin 2 [TX]  -> Kabel ORANYE (Ke D16 ESP32)",    fy+152, (249, 115, 22)),
-        ("P3", "Pin 3 [RX]  -> Kabel PUTIH (Ke D17 ESP32)",     fy+204, (255, 255, 255)),
+        ("P2", "Pin 2 [TX]  -> Kabel ORANYE (Ke D32 ESP32)",    fy+152, (249, 115, 22)),
+        ("P3", "Pin 3 [RX]  -> Kabel PUTIH (Ke D33 ESP32)",     fy+204, (255, 255, 255)),
         ("P4", "Pin 4 [GND] -> Kabel BIRU (Ke GND ESP32)",      fy+256, (37, 99, 235)),
         ("P5", "Pin 5 [TCH] -> Kabel HIJAU (Ke D35 ESP32)",     fy+308, (22, 163, 74)),
         ("P6", "Pin 6 [VA]  -> Kabel KUNING (+3.3V Sentuh!)",   fy+360, (202, 138, 4)),
@@ -398,33 +400,37 @@ def make_step3():
         esp_coords["3V3"]
     ], (220, 38, 38), width=7, label="1. Gabung Kabel COKLAT (V+) & KUNING (VA)  --->  Pin 3V3 ESP32 (Kanan Paling Bawah)", label_pos=(500, 622), labels_queue=lbls)
 
-    # 2. Pin 2 (TX Oranye) -> D16 ESP32 (Kanan No. 10)
+    # 2. Pin 2 (TX Oranye) -> D32 ESP32 (Sisi Kiri No. 6 dari Atas)
     draw_wire(d, [
         fp_pts["P2"],
         (820, fp_pts["P2"][1]),
-        (820, esp_coords["D16"][1]),
-        esp_coords["D16"]
-    ], (249, 115, 22), width=6, label="2. Kabel ORANYE (Pin 2 TX)  --->  Pin D16 ESP32 (Kanan No. 6 dari Bawah)", label_pos=(500, 470), labels_queue=lbls)
+        (820, 115),
+        (50, 115),
+        (50, esp_coords["D32"][1]),
+        esp_coords["D32"]
+    ], (249, 115, 22), width=6, label="2. Kabel ORANYE (Pin 2 TX)  --->  Pin D32 ESP32 (Sisi Kiri No. 6 dari Atas)", label_pos=(500, 205), labels_queue=lbls)
 
-    # 3. Pin 3 (RX Putih) -> D17 ESP32 (Kanan No. 9)
+    # 3. Pin 3 (RX Putih) -> D33 ESP32 (Sisi Kiri No. 7 dari Atas)
     draw_wire(d, [
         fp_pts["P3"],
         (760, fp_pts["P3"][1]),
-        (760, esp_coords["D17"][1]),
-        esp_coords["D17"]
-    ], (255, 255, 255), width=6, label="3. Kabel PUTIH (Pin 3 RX)  --->  Pin D17 ESP32 (Kanan No. 7 dari Bawah)", label_pos=(500, 415), labels_queue=lbls)
+        (760, 128),
+        (40, 128),
+        (40, esp_coords["D33"][1]),
+        esp_coords["D33"]
+    ], (255, 255, 255), width=6, label="3. Kabel PUTIH (Pin 3 RX)  --->  Pin D33 ESP32 (Sisi Kiri No. 7 dari Atas)", label_pos=(500, 250), labels_queue=lbls)
 
-    # 4. Pin 5 (TCH Hijau) -> D35 ESP32 (Kiri No. 5 dari Atas, lewat jalur atas)
+    # 4. Pin 5 (TCH Hijau) -> D35 ESP32 (Sisi Kiri No. 5 dari Atas)
     draw_wire(d, [
         fp_pts["P5"],
         (880, fp_pts["P5"][1]),
-        (880, 112),
-        (60, 112),
+        (880, 102),
+        (60, 102),
         (60, esp_coords["D35"][1]),
         esp_coords["D35"]
-    ], (22, 163, 74), width=6, label="4. Kabel HIJAU (Pin 5 TCH)  --->  Pin D35 ESP32 (Kiri No. 5 dari Atas)", label_pos=(490, 100), labels_queue=lbls)
+    ], (22, 163, 74), width=6, label="4. Kabel HIJAU (Pin 5 TCH)  --->  Pin D35 ESP32 (Sisi Kiri No. 5 dari Atas)", label_pos=(500, 95), labels_queue=lbls)
 
-    # 5. Pin 4 (GND Biru) -> GND_L ESP32 (Kiri No. 2 dari Bawah, lewat jalur bawah)
+    # 5. Pin 4 (GND Biru) -> GND_L ESP32 (Kiri No. 2 dari Bawah)
     draw_wire(d, [
         fp_pts["P4"],
         (640, fp_pts["P4"][1]),
@@ -434,7 +440,7 @@ def make_step3():
         esp_coords["GND_L"]
     ], (37, 99, 235), width=6, label="5. Kabel BIRU (Pin 4 GND)  --->  Pin GND ESP32 (Kiri No. 2 dari Bawah)", label_pos=(500, 920), labels_queue=lbls)
 
-    # Resistor 10k antara D35 dan GND_L di sisi kiri luar ESP32 (x=22)
+    # Resistor 10k antara D35 dan GND_L di sisi kiri luar ESP32
     res_y1, res_y2 = esp_coords["D35"][1] + 45, esp_coords["GND_L"][1] - 45
     d.line([(60, esp_coords["D35"][1]), (22, esp_coords["D35"][1]), (22, res_y1)], fill=(202, 138, 4), width=5)
     d.line([(22, res_y2), (22, esp_coords["GND_L"][1]), (55, esp_coords["GND_L"][1])], fill=(15, 23, 42), width=5)
@@ -444,15 +450,16 @@ def make_step3():
 
     flush_labels(d, lbls)
 
-    d.rounded_rectangle([510, 680, 1560, 880], radius=14, fill=(254, 226, 226), outline=(185, 28, 28), width=3)
-    d.text((530, 695), "PERINGATAN KERAS DARI FOTO IMG_7733 & IMG_7734 MILIKMU:", fill=(185, 28, 28), font=get_font(19, bold=True))
+    d.rounded_rectangle([510, 680, 1560, 890], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
+    d.text((530, 695), "SKEMA PIN BARU AS608 DI SISI KIRI (BERDAMPINGAN D35, D32, D33):", fill=(22, 101, 52), font=get_font(19, bold=True))
     notes = [
-        "1. Pin V+ dan VA adalah daya +3.3V: sambungkan kabel COKLAT (Pin 1) dan KUNING (Pin 6) ke 3V3.",
-        "2. Kabel BIRU adalah GND (Pin 4); kabel HITAM (D+, Pin 7) dan MERAH (D-, Pin 8) adalah USB, jangan disambungkan.",
-        "3. Di ESP32 Anda (IMG_7735), pin RX2 tertulis sebagai D16 dan pin TX2 tertulis sebagai D17."
+        "1. KABEL DATA PINDAH KE SISI KIRI: TX Oranye ke D32, RX Putih ke D33 (Tepat di bawah Pin Touch D35).",
+        "2. Di kode Arduino: Cukup gunakan 'mySerial.begin(57600, SERIAL_8N1, 32, 33);' (RX=32, TX=33).",
+        "3. Pin V+ dan VA tetap disatukan ke 3V3 (Kabel Coklat + Kuning), Kabel Biru ke GND.",
+        "4. Kabel HITAM (D+) dan MERAH (D-) adalah USB, tetap dikosongkan/jangan disambung."
     ]
     for i, n in enumerate(notes):
-        d.text((530, 732 + i*34), n, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,1,2])))
+        d.text((530, 732 + i*34), n, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,1])))
 
     save_both(img, "step3_wiring_fingerprint_as608.png")
 

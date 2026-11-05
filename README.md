@@ -106,13 +106,13 @@ Proyek ini menggunakan **Opsi 2**: modul Ethernet PHY **LAN8720A (RMII Native)**
   - `IO23` <-> `LAN8720A MDC`
   - `IO18` <-> `LAN8720A MDIO`
   - `IO0`  <-> `LAN8720A REFCLK / 50MHz Clock`
-* **Layar OLED 0.91" (I2C):**
-  - `IO2` <-> `OLED SCL`
-  - `IO4` <-> `OLED SDA`
-* **Sensor Sidik Jari AS608 (UART2 + Touch Sense):**
-  - `IO16` (RX2) <-> `AS608 TX`
-  - `IO17` (TX2) <-> `AS608 RX`
-  - `IO35` (Input Only) <-> `AS608 Touch Out` (dengan pull-down R5 10k ke GND)
+* **Layar OLED 0.91" (I2C di Sisi Kiri ESP32):**
+  - `IO25` <-> `OLED SDA`
+  - `IO26` <-> `OLED SCL`
+* **Sensor Sidik Jari AS608 (UART2 + Touch di Sisi Kiri ESP32):**
+  - `IO32` (RX2) <-> `AS608 TX` (Kabel Oranye)
+  - `IO33` (TX2) <-> `AS608 RX` (Kabel Putih)
+  - `IO35` (Input Only) <-> `AS608 Touch Out` (Kabel Hijau, dengan pull-down R5 10k ke GND)
 * **Buzzer Aktif:**
   - `IO14` <-> Resistor R6 1k <-> Anoda Buzzer (+) diparalel Dioda Flyback D6.
 
@@ -222,11 +222,22 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 #### Step 1: Rakit Dioda Bridge, Resistor 25k & Kalibrasi XL7015 ke 5.00V
 ![Step 1 Kalibrasi XL7015](step1_kalibrasi_xl7015.png)
 
-#### Step 2: Pasang 4 Kabel Layar OLED 0.91" (`SDA, SCK, VCC, GND`) ke ESP32
+#### Step 2: Pasang 4 Kabel Layar OLED 0.91" (`SDA, SCK, VCC, GND`) ke Sisi Kiri ESP32
+Kabel data OLED diposisikan di **SISI KIRI ESP32** agar sisi kanan tidak menumpuk dengan kabel Ethernet:
+- `SDA` OLED -> Pin **`D25`** ESP32
+- `SCK / SCL` OLED -> Pin **`D26`** ESP32
+- `VCC` OLED -> Pin **`3V3`** ESP32 (Kanan Paling Bawah)
+- `GND` OLED -> Pin **`GND`** ESP32 (Kiri No. 2 dari Bawah)
 ![Step 2 Wiring OLED](step2_wiring_oled.png)
 
-#### Step 3: Pasang Kabel Sensor Sidik Jari AS608 (Soket 8-Pin) ke ESP32
-Urutan kabel mulai dari pin `V+`: **coklat, oranye, putih, biru, hijau, kuning, hitam, merah**. Pin 1–8 berturut-turut adalah `V+`, `TX`, `RX`, `GND`, `TCH`, `VA`, `D+`, `D-`; hubungkan coklat dan kuning ke `3V3`, biru ke `GND`, oranye (`TX`) ke `D16`, putih (`RX`) ke `D17`, dan hijau (`TCH`) ke `D35`. Kabel hitam (`D+`) dan merah (`D-`) adalah jalur USB, biarkan tidak tersambung.
+#### Step 3: Pasang Kabel Sensor Sidik Jari AS608 ke Sisi Kiri ESP32 (Berdampingan di D35, D32, D33)
+Seluruh kabel data biometrik dipusatkan di **SISI KIRI ESP32** secara berurutan:
+- Pin 1 (`V+`, Coklat) & Pin 6 (`VA`, Kuning) -> Digabung ke Pin **`3V3`**
+- Pin 2 (`TX`, Oranye) -> Pin **`D32`** ESP32
+- Pin 3 (`RX`, Putih) -> Pin **`D33`** ESP32
+- Pin 4 (`GND`, Biru) -> Pin **`GND`** ESP32 (Kiri No. 2 dari Bawah)
+- Pin 5 (`TCH`, Hijau) -> Pin **`D35`** ESP32 (dengan Resistor 10k ke GND)
+- Pin 7 (`D+`, Hitam) & Pin 8 (`D-`, Merah) -> Jalur USB, dibiarkan kosong/tidak dipakai.
 ![Step 3 Wiring Fingerprint AS608](step3_wiring_fingerprint_as608.png)
 
 #### Step 4: Pasang Buzzer, Resistor 1k & Dioda Flyback ke ESP32
@@ -272,10 +283,10 @@ Gunakan library resmi ESP32 Ethernet bawaan Arduino core (`ETH.h` yang berbasis 
 #define ETH_TYPE       ETH_PHY_LAN8720
 #define ETH_CLK_MODE   ETH_CLOCK_GPIO0_IN
 
-// OLED I2C (IO2 SCL, IO4 SDA)
+// OLED I2C di Sisi Kiri ESP32 (IO25 SDA, IO26 SCL)
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
 
-// AS608 Fingerprint (UART2: IO16 RX2, IO17 TX2)
+// AS608 Fingerprint di Sisi Kiri ESP32 (UART2: IO32 RX2, IO33 TX2)
 HardwareSerial mySerial(2);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
@@ -300,8 +311,9 @@ void WiFiEvent(WiFiEvent_t event) {
 
 void setup() {
   Serial.begin(115200);
-  Wire.begin(4, 2); // SDA=IO4, SCL=IO2
+  Wire.begin(25, 26); // SDA=IO25, SCL=IO26 (Sisi Kiri ESP32)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  mySerial.begin(57600, SERIAL_8N1, 32, 33); // RX=IO32, TX=IO33 (Sisi Kiri ESP32)
   
   WiFi.onEvent(WiFiEvent);
   ETH.begin(ETH_TYPE, ETH_ADDR, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_POWER_PIN, ETH_CLK_MODE);
