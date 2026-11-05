@@ -1,18 +1,18 @@
 import os
 from PIL import Image, ImageDraw, ImageFont
 
-PROJ_DIR = r"/home/arif/Documents/mesin-absensi-poe"
-ART_DIR = r"/home/arif/.gemini/antigravity-cli/brain/76e1ca41-f93c-4b57-9057-12dac73d9bdd"
+PROJ_DIR = r"C:\Users\Laptop\mesin-absensi-poe"
+ART_DIR = r"C:\Users\Laptop\.gemini\antigravity\brain\ce03850e-f42c-4152-bcd2-05e2c82a49f5"
 os.makedirs(PROJ_DIR, exist_ok=True)
 os.makedirs(ART_DIR, exist_ok=True)
 
 def get_font(size, bold=False, mono=False):
     font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
     ]
     if mono:
-        font_paths.insert(0, "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+        font_paths.insert(0, "C:/Windows/Fonts/consola.ttf" if bold else "C:/Windows/Fonts/consolab.ttf")
     for p in font_paths:
         if os.path.exists(p):
             return ImageFont.truetype(p, size)
@@ -525,11 +525,12 @@ def make_step4():
     d.rounded_rectangle([650, 650, 1550, 880], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
     d.text((675, 670), "CARA MEMBEDAKAN KAKI (+) DAN (-) BUZZER:", fill=(22, 101, 52), font=get_font(19, bold=True))
     b_notes = [
-        "1. Lihat tanda (+) di atas bodi bulat Buzzer. Kaki yang lebih PANJANG",
-        "   adalah kutub Positif (+), sambungkan ke Resistor 1k.",
-        "2. Kaki yang lebih PENDEK adalah kutub Negatif (-), sambungkan ke GND.",
-        "3. Di ESP32 Anda (IMG_7735), urutan kiri bawah ke atas adalah: VIN, GND, D13, D12, lalu D14 (No. 5 dari bawah).",
-        "4. Dioda 1N4007 dipasang melintang di antara kaki (+) dan (-) Buzzer (Gelang Perak menghadap ke kaki +)."
+        "1. PERINGATAN STRAPPING PIN: Resistor Buzzer WAJIB ke D14 (Kiri No. 5 dari Bawah). JANGAN ke D12!",
+        "   (Jika D12 dicolok, memori flash ESP32 terkunci dan gagal boot / gagal flash).",
+        "2. Kaki (+) Buzzer ke D14 (atau Kolektor Transistor NPN jika buzzer 5V), Kaki (-) ke GND.",
+        "3. Jika menggunakan Buzzer 5V: Gunakan transistor NPN (S8050/BC547) karena arus GPIO 3.3V terbatas.",
+        "4. Untuk Active Buzzer 3.3V: Bisa langsung disambung D14 -> Kaki (+) dan GND -> Kaki (-).",
+        "5. Dioda Flyback: Gelang Perak WAJIB menghadap ke kaki Positif (+). Jika terbalik, arus korslet ke GND!"
     ]
     for i, bn in enumerate(b_notes):
         d.text((675, 710 + i*30), bn, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,3])))
@@ -574,7 +575,7 @@ def make_step5_w5500():
         ("MOSI", "Pin MOSI (Kolom 3 Atas)  -> Ke D23", wy+318, (37, 99, 235)),
         ("MISO", "Pin MISO (Kolom 2 Atas)  -> Ke D19", wy+356, (16, 185, 129)),
         ("3V3",  "Pin 3.3V (Kolom 1 Atas)  -> Ke 3V3", wy+394, (220, 38, 38)),
-        ("RST",  "Pin RST  (Kolom 3 Bawah) -> Ke D15", wy+432, (202, 138, 4)),
+        ("RST",  "Pin RST  (Kolom 3 Bawah) -> Ke 3V3", wy+432, (202, 138, 4)),
         ("GND",  "Pin GND  (Kolom 2/5 Bwh) -> Ke GND", wy+462, (30, 41, 59)),
     ]
     w_pts = {}
@@ -622,7 +623,7 @@ def make_step5_w5500():
         (760, w_pts["RST"][1]),
         (760, esp_coords["D15"][1]),
         esp_coords["D15"]
-    ], (202, 138, 4), width=6, label="5. RST W5500   --->  Pin D15 ESP32 (Kanan No. 3 dari Bawah)", label_pos=(510, 535), labels_queue=lbls)
+    ], (202, 138, 4), width=6, label="5. RST W5500   --->  Pin 3V3 ESP32 (Wakeup Active-High / Normal Operasi)", label_pos=(510, 535), labels_queue=lbls)
 
     # 6. GND -> GND_R (Right #14)
     draw_wire(d, [

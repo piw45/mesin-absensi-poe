@@ -229,10 +229,23 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 Urutan kabel mulai dari pin `V+`: **coklat, oranye, putih, biru, hijau, kuning, hitam, merah**. Pin 1–8 berturut-turut adalah `V+`, `TX`, `RX`, `GND`, `TCH`, `VA`, `D+`, `D-`; hubungkan coklat dan kuning ke `3V3`, biru ke `GND`, oranye (`TX`) ke `D16`, putih (`RX`) ke `D17`, dan hijau (`TCH`) ke `D35`. Kabel hitam (`D+`) dan merah (`D-`) adalah jalur USB, biarkan tidak tersambung.
 ![Step 3 Wiring Fingerprint AS608](step3_wiring_fingerprint_as608.png)
 
-#### Step 4: Pasang Buzzer 3.3V, Resistor 1k & Dioda Flyback ke ESP32
+#### Step 4: Pasang Buzzer, Resistor 1k & Dioda Flyback ke ESP32
+> [!WARNING]
+> **Peringatan Strapping Pin:** Kaki sinyal buzzer **WAJIB ke pin `D14`** (Kiri No. 5 dari Bawah), **JANGAN ke `D12`**! Jika pin `D12` terhubung beban saat ESP32 menyala, memori flash ESP32 akan terkunci pada tegangan 1.8V dan ESP32 tidak bisa di-flash/booting.
+> - **Jika menggunakan Buzzer 5V:** Disarankan menggunakan saklar transistor NPN (S8050/BC547) karena arus pin GPIO 3.3V terbatas.
+> - **Jika menggunakan Active Buzzer 3.3V:** Bisa langsung dihubungkan: Pin `D14` -> Resistor 1k -> Kaki (+) Buzzer, dan Kaki (-) Buzzer ke `GND`. Gelang perak dioda flyback menghadap ke kaki (+).
 ![Step 4 Wiring Buzzer](step4_wiring_buzzer.png)
 
 #### Step 5: Pasang Modul Ethernet W5500 Biru (10-Pin Header Kuning) ke ESP32
+Sambungkan 7 pin W5500 ke baris kanan ESP32:
+- `MOSI` -> Pin `D23` (Kanan No. 1 / Paling Atas)
+- `MISO` -> Pin `D19` (Kanan No. 6 dari Atas)
+- `SCLK` -> Pin `D18` (Kanan No. 7 dari Atas)
+- `SCS`  -> Pin `D5` (Kanan No. 8 dari Atas)
+- `RST`  -> Pin `3V3` (W5500 bertipe *Active-LOW*, hubungkan ke 3.3V agar chip aktif/bangun dari reset)
+- `3.3V` -> Pin `3V3` ESP32 (Kanan Paling Bawah)
+- `GND`  -> Pin `GND` ESP32 (Kanan No. 2 dari Bawah)
+*(Pin 5V dan INT dikosongkan/tidak dipakai).*
 ![Step 5 Wiring W5500](step5_wiring_w5500.png)
 
 #### Step 6: Sambungkan Daya 5.00V XL7015 ke Pin `VIN` & `GND` ESP32
