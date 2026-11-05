@@ -355,7 +355,7 @@ def make_step3():
 
     d.rectangle([0, 0, W, 95], fill=(185, 28, 28))
     d.text((35, 12), "STEP 3: KABEL SENSOR SIDIK JARI AS608 (SESUAI FOTO IMG_7733 & IMG_7734!)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 50), "AWAS JEBAKAN PABRIK DI FOTO IMG_7734: Warna kabel bawaan sensor Anda ACAK (Hitam=VA 3.3V, Hijau=GND, Merah=D+)!", fill=(254, 240, 138), font=get_font(16, bold=True))
+    d.text((35, 50), "URUTAN DARI PIN V+: COKLAT, ORANYE, PUTIH, BIRU, HIJAU, KUNING, HITAM, MERAH", fill=(254, 240, 138), font=get_font(16, bold=True))
 
     esp_coords = draw_esp32(d, 90, 140, active_left=["D35", "GND_L"], active_right=["D17", "D16", "3V3"])
 
@@ -367,54 +367,54 @@ def make_step3():
 
     d.rounded_rectangle([fx+20, fy+70, fx+530, fy+490], radius=10, fill=(248, 250, 252), outline=(148, 163, 184), width=3)
 
-    # Persis 8 Pin dari atas ke bawah sesuai IMG_7733 & IMG_7734:
+    # Urutan kabel dari V+: coklat, oranye, putih, biru, hijau, kuning, hitam, merah.
     fp_pins = [
         ("P1", "Pin 1 [V+]  -> Kabel COKLAT (+3.3V Utama)",     fy+100, (120, 53, 15)),
-        ("P2", "Pin 2 [TX]  -> Kabel PUTIH (Ke D16 ESP32)",     fy+152, (100, 116, 139)),
-        ("P3", "Pin 3 [RX]  -> Kabel BIRU (Ke D17 ESP32)",      fy+204, (37, 99, 235)),
-        ("P4", "Pin 4 [GND] -> Kabel HIJAU (Ke GND ESP32)",     fy+256, (22, 163, 74)),
-        ("P5", "Pin 5 [TCH] -> Kabel KUNING (Ke D35 ESP32)",    fy+308, (202, 138, 4)),
-        ("P6", "Pin 6 [VA]  -> Kabel HITAM (+3.3V Sentuh!)",    fy+360, (15, 23, 42)),
-        ("P7", "Pin 7 [D+]  -> Kabel MERAH (JANGAN DIPAKAI!)",  fy+412, (220, 38, 38)),
-        ("P8", "Pin 8 [D-]  -> (Kosong / Tidak Ada Kabel)",     fy+464, (148, 163, 184)),
+        ("P2", "Pin 2 [TX]  -> Kabel ORANYE (Ke D16 ESP32)",    fy+152, (249, 115, 22)),
+        ("P3", "Pin 3 [RX]  -> Kabel PUTIH (Ke D17 ESP32)",     fy+204, (255, 255, 255)),
+        ("P4", "Pin 4 [GND] -> Kabel BIRU (Ke GND ESP32)",      fy+256, (37, 99, 235)),
+        ("P5", "Pin 5 [TCH] -> Kabel HIJAU (Ke D35 ESP32)",     fy+308, (22, 163, 74)),
+        ("P6", "Pin 6 [VA]  -> Kabel KUNING (+3.3V Sentuh!)",   fy+360, (202, 138, 4)),
+        ("P7", "Pin 7 [D+]  -> Kabel HITAM (JANGAN DIPAKAI!)",  fy+412, (15, 23, 42)),
+        ("P8", "Pin 8 [D-]  -> Kabel MERAH (JANGAN DIPAKAI!)",  fy+464, (220, 38, 38)),
     ]
     fp_pts = {}
     for pcode, pdesc, py, col in fp_pins:
         d.rectangle([fx+30, py-12, fx+62, py+12], fill=col, outline=(15, 23, 42), width=2)
-        txt_c = (185, 28, 28) if pcode == "P7" else ((100, 116, 139) if pcode == "P8" else (15, 23, 42))
+        txt_c = (185, 28, 28) if pcode in ["P7", "P8"] else (15, 23, 42)
         d.text((fx+72, py-11), pdesc, fill=txt_c, font=get_font(15, bold=True))
         fp_pts[pcode] = (fx+30, py)
 
-    # 1. Pin 1 (V+ Coklat) & Pin 6 (VA Hitam) digabung -> 3V3 ESP32 (Kanan Paling Bawah!)
+    # 1. Pin 1 (V+ Coklat) & Pin 6 (VA Kuning) digabung -> 3V3 ESP32 (Kanan Paling Bawah!)
     draw_wire(d, [
         fp_pts["P1"],
         (940, fp_pts["P1"][1]),
         (940, fp_pts["P6"][1]),
         fp_pts["P6"]
-    ], (120, 53, 15), width=6)
+    ], (202, 138, 4), width=6)
     draw_wire(d, [
         (940, fp_pts["P6"][1]),
         (940, esp_coords["3V3"][1]),
         esp_coords["3V3"]
-    ], (220, 38, 38), width=7, label="1. Gabung Kabel COKLAT (V+) & Kabel HITAM (VA)  --->  Pin 3V3 ESP32 (Kanan Paling Bawah)", label_pos=(500, 622), labels_queue=lbls)
+    ], (220, 38, 38), width=7, label="1. Gabung Kabel COKLAT (V+) & KUNING (VA)  --->  Pin 3V3 ESP32 (Kanan Paling Bawah)", label_pos=(500, 622), labels_queue=lbls)
 
-    # 2. Pin 2 (TX Putih) -> D16 ESP32 (Kanan No. 10)
+    # 2. Pin 2 (TX Oranye) -> D16 ESP32 (Kanan No. 10)
     draw_wire(d, [
         fp_pts["P2"],
         (820, fp_pts["P2"][1]),
         (820, esp_coords["D16"][1]),
         esp_coords["D16"]
-    ], (100, 116, 139), width=6, label="2. Kabel PUTIH (Pin 2 TX)  --->  Pin D16 ESP32 (Kanan No. 6 dari Bawah)", label_pos=(500, 470), labels_queue=lbls)
+    ], (249, 115, 22), width=6, label="2. Kabel ORANYE (Pin 2 TX)  --->  Pin D16 ESP32 (Kanan No. 6 dari Bawah)", label_pos=(500, 470), labels_queue=lbls)
 
-    # 3. Pin 3 (RX Biru) -> D17 ESP32 (Kanan No. 9)
+    # 3. Pin 3 (RX Putih) -> D17 ESP32 (Kanan No. 9)
     draw_wire(d, [
         fp_pts["P3"],
         (760, fp_pts["P3"][1]),
         (760, esp_coords["D17"][1]),
         esp_coords["D17"]
-    ], (37, 99, 235), width=6, label="3. Kabel BIRU (Pin 3 RX)  --->  Pin D17 ESP32 (Kanan No. 7 dari Bawah)", label_pos=(500, 415), labels_queue=lbls)
+    ], (255, 255, 255), width=6, label="3. Kabel PUTIH (Pin 3 RX)  --->  Pin D17 ESP32 (Kanan No. 7 dari Bawah)", label_pos=(500, 415), labels_queue=lbls)
 
-    # 4. Pin 5 (TCH Kuning) -> D35 ESP32 (Kiri No. 5 dari Atas, lewat jalur atas)
+    # 4. Pin 5 (TCH Hijau) -> D35 ESP32 (Kiri No. 5 dari Atas, lewat jalur atas)
     draw_wire(d, [
         fp_pts["P5"],
         (880, fp_pts["P5"][1]),
@@ -422,9 +422,9 @@ def make_step3():
         (60, 112),
         (60, esp_coords["D35"][1]),
         esp_coords["D35"]
-    ], (202, 138, 4), width=6, label="4. Kabel KUNING (Pin 5 TCH)  --->  Pin D35 ESP32 (Kiri No. 5 dari Atas)", label_pos=(490, 100), labels_queue=lbls)
+    ], (22, 163, 74), width=6, label="4. Kabel HIJAU (Pin 5 TCH)  --->  Pin D35 ESP32 (Kiri No. 5 dari Atas)", label_pos=(490, 100), labels_queue=lbls)
 
-    # 5. Pin 4 (GND Hijau) -> GND_L ESP32 (Kiri No. 2 dari Bawah, lewat jalur bawah)
+    # 5. Pin 4 (GND Biru) -> GND_L ESP32 (Kiri No. 2 dari Bawah, lewat jalur bawah)
     draw_wire(d, [
         fp_pts["P4"],
         (640, fp_pts["P4"][1]),
@@ -432,7 +432,7 @@ def make_step3():
         (55, 935),
         (55, esp_coords["GND_L"][1]),
         esp_coords["GND_L"]
-    ], (22, 163, 74), width=6, label="5. Kabel HIJAU (Pin 4 GND)  --->  Pin GND ESP32 (Kiri No. 2 dari Bawah)", label_pos=(500, 920), labels_queue=lbls)
+    ], (37, 99, 235), width=6, label="5. Kabel BIRU (Pin 4 GND)  --->  Pin GND ESP32 (Kiri No. 2 dari Bawah)", label_pos=(500, 920), labels_queue=lbls)
 
     # Resistor 10k antara D35 dan GND_L di sisi kiri luar ESP32 (x=22)
     res_y1, res_y2 = esp_coords["D35"][1] + 45, esp_coords["GND_L"][1] - 45
@@ -447,9 +447,8 @@ def make_step3():
     d.rounded_rectangle([510, 680, 1560, 880], radius=14, fill=(254, 226, 226), outline=(185, 28, 28), width=3)
     d.text((530, 695), "PERINGATAN KERAS DARI FOTO IMG_7733 & IMG_7734 MILIKMU:", fill=(185, 28, 28), font=get_font(19, bold=True))
     notes = [
-        "1. JANGAN TERTIPU WARNA KABEL! Di kabel bawaan sensor Anda (IMG_7734), kabel HITAM itu terpasang di pin VA (+3.3V),",
-        "   sedangkan yang menjadi GND justru kabel HIJAU (Pin 4)! Kalau Hitam Anda colok ke GND, sensor tidak akan menyala.",
-        "2. Kabel MERAH paling bawah (Pin 7: D+) adalah jalur USB, BIARKAN MENGGANTUNG / JANGAN DISAMBUNG ke mana pun!",
+        "1. Pin V+ dan VA adalah daya +3.3V: sambungkan kabel COKLAT (Pin 1) dan KUNING (Pin 6) ke 3V3.",
+        "2. Kabel BIRU adalah GND (Pin 4); kabel HITAM (D+, Pin 7) dan MERAH (D-, Pin 8) adalah USB, jangan disambungkan.",
         "3. Di ESP32 Anda (IMG_7735), pin RX2 tertulis sebagai D16 dan pin TX2 tertulis sebagai D17."
     ]
     for i, n in enumerate(notes):

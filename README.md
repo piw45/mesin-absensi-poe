@@ -226,6 +226,7 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 ![Step 2 Wiring OLED](step2_wiring_oled.png)
 
 #### Step 3: Pasang Kabel Sensor Sidik Jari AS608 (Soket 8-Pin) ke ESP32
+Urutan kabel mulai dari pin `V+`: **coklat, oranye, putih, biru, hijau, kuning, hitam, merah**. Pin 1–8 berturut-turut adalah `V+`, `TX`, `RX`, `GND`, `TCH`, `VA`, `D+`, `D-`; hubungkan coklat dan kuning ke `3V3`, biru ke `GND`, oranye (`TX`) ke `D16`, putih (`RX`) ke `D17`, dan hijau (`TCH`) ke `D35`. Kabel hitam (`D+`) dan merah (`D-`) adalah jalur USB, biarkan tidak tersambung.
 ![Step 3 Wiring Fingerprint AS608](step3_wiring_fingerprint_as608.png)
 
 #### Step 4: Pasang Buzzer 3.3V, Resistor 1k & Dioda Flyback ke ESP32
