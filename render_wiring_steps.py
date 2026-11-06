@@ -543,35 +543,32 @@ def make_step5_w5500():
     lbls = []
 
     d.rectangle([0, 0, W, 95], fill=(30, 58, 138))
-    d.text((35, 14), "STEP 5: PASANG MODUL ETHERNET W5500 BIRU (SESUAI FOTO IMG_7737 & IMG_7738)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 52), "Perhatikan 10 pin kuning (2 baris x 5 kolom) di belakang modul W5500 Anda pada foto IMG_7738!", fill=(191, 219, 254), font=get_font(18, bold=True))
+    d.text((35, 14), "STEP 5: PASANG MODUL W5500 (SIMETRIS KIRI & KANAN - PERSIS 7 VS 7 PIN DARI BAWAH!)", fill=(255, 255, 255), font=get_font(24, bold=True))
+    d.text((35, 52), "Kabel W5500 melengkapi pin kiri (D27, D26, D25) dan kanan (D16, D17). Bagian atas ESP32 BERSIH TOTAL!", fill=(191, 219, 254), font=get_font(17, bold=True))
 
-    esp_coords = draw_esp32(d, 90, 140, active_left=[], active_right=["D23", "D19", "D18", "D5", "D15", "GND_R", "3V3"])
+    esp_coords = draw_esp32(d, 90, 140, active_left=["D27", "D26", "D25", "GND_L"], active_right=["D16", "D17", "GND_R", "3V3"])
 
     wx, wy = 1030, 150
     ww, wh = 530, 490
     d.rounded_rectangle([wx, wy, wx+ww, wy+wh], radius=18, fill=(29, 78, 216), outline=(15, 23, 42), width=4)
     d.text((wx+25, wy+18), "MODUL W5500 BIRU (TAMPAK BELAKANG)", fill=(250, 204, 21), font=get_font(20, bold=True))
-    d.text((wx+25, wy+46), "Persis sesuai foto IMG_7738 (Header Kuning 2x5 Pin):", fill=(255, 255, 255), font=get_font(15, bold=True))
+    d.text((wx+25, wy+46), "Kabel SPI Terbagi Simetris Bawah (Persis 7 Pin Kiri/Kanan):", fill=(255, 255, 255), font=get_font(15, bold=True))
 
-    # Gambar kotak konektor RJ45 di bagian atas seperti di IMG_7738
     d.rounded_rectangle([wx+145, wy+80, wx+385, wy+170], radius=8, fill=(203, 213, 225), outline=(71, 85, 105), width=3)
     d.text((wx+170, wy+105), "SOKET LAN RJ45", fill=(15, 23, 42), font=get_font(18, bold=True))
     d.text((wx+165, wy+132), "(HanRun HR911105A)", fill=(51, 65, 85), font=get_font(14, bold=True))
 
-    # Gambar Header Kuning 2x5 diputar vertikal supaya mudah ditarik garis ke kiri,
-    # sambil menampilkan posisi Kolom 1-5 Baris Atas & Bawah persis seperti IMG_7738!
     d.rounded_rectangle([wx+20, wy+190, wx+510, wy+470], radius=12, fill=(254, 249, 195), outline=(202, 138, 4), width=3)
-    d.text((wx+35, wy+200), "PIN HEADER KUNING 2x5 (Lihat tulisan di foto IMG_7738):", fill=(146, 64, 14), font=get_font(15, bold=True))
+    d.text((wx+35, wy+200), "PIN HEADER KUNING W5500 (Melengkapi Sisi Kiri & Kanan):", fill=(146, 64, 14), font=get_font(15, bold=True))
 
     w5500_pins = [
-        ("SCLK", "Pin SCLK (Kolom 5 Atas)  -> Ke D18", wy+242, (234, 88, 12)),
-        ("SCS",  "Pin SCS  (Kolom 4 Atas)  -> Ke D5",  wy+280, (147, 51, 234)),
-        ("MOSI", "Pin MOSI (Kolom 3 Atas)  -> Ke D23", wy+318, (37, 99, 235)),
-        ("MISO", "Pin MISO (Kolom 2 Atas)  -> Ke D19", wy+356, (16, 185, 129)),
-        ("3V3",  "Pin 3.3V (Kolom 1 Atas)  -> Ke 3V3", wy+394, (220, 38, 38)),
-        ("RST",  "Pin RST  (Kolom 3 Bawah) -> Ke 3V3", wy+432, (202, 138, 4)),
-        ("GND",  "Pin GND  (Kolom 2/5 Bwh) -> Ke GND", wy+462, (30, 41, 59)),
+        ("SCS",  "Pin SCS  (Kolom 4 Atas)  -> Ke D27 (Kiri No. 6)",  wy+242, (147, 51, 234)),
+        ("MOSI", "Pin MOSI (Kolom 3 Atas)  -> Ke D26 (Kiri No. 7)",  wy+280, (37, 99, 235)),
+        ("MISO", "Pin MISO (Kolom 2 Atas)  -> Ke D25 (Kiri No. 8)",  wy+318, (16, 185, 129)),
+        ("SCLK", "Pin SCLK (Kolom 5 Atas)  -> Ke D16 (Kanan No. 6)", wy+356, (234, 88, 12)),
+        ("RST",  "Pin RST  (Kolom 3 Bawah) -> Ke D17 (Kanan No. 7)", wy+394, (202, 138, 4)),
+        ("GND",  "Pin GND  (Kolom 2 Bawah) -> Ke GND (Kanan)",       wy+432, (30, 41, 59)),
+        ("3V3",  "Pin 3.3V (Kolom 1 Atas)  -> Ke 3V3 (Kanan)",       wy+462, (220, 38, 38)),
     ]
     w_pts = {}
     for pcode, pdesc, py, col in w5500_pins:
@@ -579,86 +576,84 @@ def make_step5_w5500():
         d.text((wx+75, py-10), pdesc, fill=(15, 23, 42), font=get_font(15, bold=True))
         w_pts[pcode] = (wx+35, py)
 
-    # Semua 7 pin W5500 masuk ke deretan KANAN ESP32! Sangat rapi!
-    # 1. MOSI -> D23 (Right #1, top)
-    draw_wire(d, [
-        w_pts["MOSI"],
-        (560, w_pts["MOSI"][1]),
-        (560, esp_coords["D23"][1]),
-        esp_coords["D23"]
-    ], (37, 99, 235), width=6, label="1. MOSI W5500  --->  Pin D23 ESP32 (Kanan Paling Atas / No. 1)", label_pos=(510, 155), labels_queue=lbls)
-
-    # 2. MISO -> D19 (Right #6)
-    draw_wire(d, [
-        w_pts["MISO"],
-        (610, w_pts["MISO"][1]),
-        (610, esp_coords["D19"][1]),
-        esp_coords["D19"]
-    ], (16, 185, 129), width=6, label="2. MISO W5500  --->  Pin D19 ESP32 (Kanan No. 6 dari Atas)", label_pos=(510, 345), labels_queue=lbls)
-
-    # 3. SCLK -> D18 (Right #7)
-    draw_wire(d, [
-        w_pts["SCLK"],
-        (660, w_pts["SCLK"][1]),
-        (660, esp_coords["D18"][1]),
-        esp_coords["D18"]
-    ], (234, 88, 12), width=6, label="3. SCLK W5500  --->  Pin D18 ESP32 (Kanan No. 7 dari Atas)", label_pos=(510, 215), labels_queue=lbls)
-
-    # 4. SCS -> D5 (Right #8)
-    draw_wire(d, [
-        w_pts["SCS"],
-        (710, w_pts["SCS"][1]),
-        (710, esp_coords["D5"][1]),
-        esp_coords["D5"]
-    ], (147, 51, 234), width=6, label="4. SCS W5500   --->  Pin D5 ESP32 (Kanan No. 8 dari Atas)", label_pos=(510, 280), labels_queue=lbls)
-
-    # 5. RST -> D15 (Right #13)
-    draw_wire(d, [
-        w_pts["RST"],
-        (760, w_pts["RST"][1]),
-        (760, esp_coords["D15"][1]),
-        esp_coords["D15"]
-    ], (202, 138, 4), width=6, label="5. RST W5500   --->  Pin 3V3 ESP32 (Wakeup Active-High / Normal Operasi)", label_pos=(510, 535), labels_queue=lbls)
-
-    # 6. GND -> GND_R (Right #14)
-    draw_wire(d, [
-        w_pts["GND"],
-        (810, w_pts["GND"][1]),
-        (810, esp_coords["GND_R"][1]),
-        esp_coords["GND_R"]
-    ], (30, 41, 59), width=6, label="6. GND W5500   --->  Pin GND ESP32 (Kanan No. 2 dari Bawah)", label_pos=(510, 588), labels_queue=lbls)
-
-    # 7. 3.3V -> 3V3 (Right #15)
+    # 1. 3.3V -> 3V3 (Kanan Paling Bawah)
     draw_wire(d, [
         w_pts["3V3"],
-        (860, w_pts["3V3"][1]),
-        (860, esp_coords["3V3"][1]),
+        (880, w_pts["3V3"][1]),
+        (880, esp_coords["3V3"][1]),
         esp_coords["3V3"]
-    ], (220, 38, 38), width=6, label="7. 3.3V W5500  --->  Pin 3V3 ESP32 (Kanan Paling Bawah / No. 15)", label_pos=(510, 640), labels_queue=lbls)
+    ], (220, 38, 38), width=6, label="1. 3.3V W5500  --->  Pin 3V3 ESP32 (Kanan Paling Bawah / No. 1)", label_pos=(510, 640), labels_queue=lbls)
+
+    # 2. GND -> GND_R (Kanan No. 2 dari Bawah)
+    draw_wire(d, [
+        w_pts["GND"],
+        (830, w_pts["GND"][1]),
+        (830, esp_coords["GND_R"][1]),
+        esp_coords["GND_R"]
+    ], (30, 41, 59), width=6, label="2. GND W5500   --->  Pin GND ESP32 (Kanan No. 2 dari Bawah)", label_pos=(510, 588), labels_queue=lbls)
+
+    # 3. RST -> D17 (Kanan No. 7 dari Bawah)
+    draw_wire(d, [
+        w_pts["RST"],
+        (780, w_pts["RST"][1]),
+        (780, esp_coords["D17"][1]),
+        esp_coords["D17"]
+    ], (202, 138, 4), width=6, label="3. RST W5500   --->  Pin D17 ESP32 (Kanan No. 7 dari Bawah)", label_pos=(510, 370), labels_queue=lbls)
+
+    # 4. SCLK -> D16 (Kanan No. 6 dari Bawah)
+    draw_wire(d, [
+        w_pts["SCLK"],
+        (730, w_pts["SCLK"][1]),
+        (730, esp_coords["D16"][1]),
+        esp_coords["D16"]
+    ], (234, 88, 12), width=6, label="4. SCLK W5500  --->  Pin D16 ESP32 (Kanan No. 6 dari Bawah)", label_pos=(510, 425), labels_queue=lbls)
+
+    # 5. MISO -> D25 (Kiri No. 8 dari Bawah, lewat bawah kabel)
+    draw_wire(d, [
+        w_pts["MISO"],
+        (680, w_pts["MISO"][1]),
+        (680, 870),
+        (55, 870),
+        (55, esp_coords["D25"][1]),
+        esp_coords["D25"]
+    ], (16, 185, 129), width=6, label="5. MISO W5500  --->  Pin D25 ESP32 (Kiri No. 8 dari Bawah)", label_pos=(510, 855), labels_queue=lbls)
+
+    # 6. MOSI -> D26 (Kiri No. 7 dari Bawah)
+    draw_wire(d, [
+        w_pts["MOSI"],
+        (630, w_pts["MOSI"][1]),
+        (630, 890),
+        (45, 890),
+        (45, esp_coords["D26"][1]),
+        esp_coords["D26"]
+    ], (37, 99, 235), width=6, label="6. MOSI W5500  --->  Pin D26 ESP32 (Kiri No. 7 dari Bawah)", label_pos=(510, 885), labels_queue=lbls)
+
+    # 7. SCS -> D27 (Kiri No. 6 dari Bawah)
+    draw_wire(d, [
+        w_pts["SCS"],
+        (580, w_pts["SCS"][1]),
+        (580, 910),
+        (35, 910),
+        (35, esp_coords["D27"][1]),
+        esp_coords["D27"]
+    ], (147, 51, 234), width=6, label="7. SCS W5500   --->  Pin D27 ESP32 (Kiri No. 6 dari Bawah)", label_pos=(510, 915), labels_queue=lbls)
 
     flush_labels(d, lbls)
 
-    d.rounded_rectangle([510, 695, 1560, 1020], radius=14, fill=(255, 255, 255), outline=(30, 58, 138), width=3)
-    d.rectangle([510, 695, 1560, 740], fill=(30, 58, 138))
-    d.text((530, 707), "PANDUAN MEMBACA 10 PIN KUNING W5500 DI FOTO IMG_7738 MILIKMU:", fill=(255, 255, 255), font=get_font(18, bold=True))
+    d.rounded_rectangle([510, 680, 1560, 830], radius=14, fill=(255, 255, 255), outline=(30, 58, 138), width=3)
+    d.rectangle([510, 680, 1560, 725], fill=(30, 58, 138))
+    d.text((530, 692), "KIRI DAN KANAN MEMAKAI JUMLAH PIN YANG SAMA PERSIS (7 VS 7 PIN DARI BAWAH):", fill=(255, 255, 255), font=get_font(18, bold=True))
     w_notes = [
-        "1. Pegang modul W5500 menghadap bagian belakang seperti di foto IMG_7738 (pin kuning di bawah):",
-        "   - BARIS ATAS (kiri ke kanan)   :  [3.3V]   [MISO]   [MOSI]   [SCS]   [SCLK]",
-        "   - BARIS BAWAH (kiri ke kanan) :  [ 5V ]   [GND ]   [RST ]   [INT]   [GND ]",
-        "2. Pin 5V dan INT boleh dikosongkan (tidak dipakai) karena kita sudah memberi daya lewat pin 3.3V.",
-        "3. CATATAN PoE UNTUK W5500: Jika Anda mencolokkan kabel LAN PoE ke soket RJ45 di modul W5500 ini,",
-        "   ambil 4 kabel PoE (Biru, Putih-Biru, Coklat, Putih-Coklat) sebelum masuk konektor RJ45 (atau solder",
-        "   dari kaki timah RJ45 nomor 4,5 dan 7,8 di balik W5500) untuk masuk ke Dioda Bridge Step 1!"
+        "1. KIRI (7 PIN BAWAH): VIN, GND, D13 (SDA), D14 (SCL), D27 (SCS), D26 (MOSI), D25 (MISO).",
+        "2. KANAN (7 PIN BAWAH): 3V3, GND, D15 (TX), D2 (RX), D4 (TCH), D16 (SCLK), D17 (RST).",
+        "3. Keduanya kompak dari bawah ke atas sampai pin No. 8. Bagian atas ESP32 KOSONG BERSIH!",
+        "4. Di kode SPI Arduino: SPI.begin(16, 25, 26, 27); // SCLK=16, MISO=25, MOSI=26, SS/SCS=27"
     ]
     for i, wn in enumerate(w_notes):
-        d.text((530, 752 + i*35), wn, fill=(15, 23, 42), font=get_font(15, bold=(i in [1,2,4])))
+        d.text((530, 735 + i*23), wn, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,1,2])))
 
     save_both(img, "step5_wiring_w5500.png")
 
-
-# ==============================================================================
-# GAMBAR 6: STEP 6 (TERAKHIR) - SAMBUNGAN DAYA 5.00V XL7015 KE PIN VIN & GND ESP32
-# ==============================================================================
 def make_step6_power():
     W, H = 1600, 980
     img = Image.new("RGB", (W, H), (248, 250, 252))
