@@ -247,15 +247,15 @@ Seluruh kabel data biometrik dipusatkan di **SISI KIRI ESP32** secara berurutan:
 > - **Jika menggunakan Active Buzzer 3.3V:** Bisa langsung dihubungkan: Pin `D14` -> Resistor 1k -> Kaki (+) Buzzer, dan Kaki (-) Buzzer ke `GND`. Gelang perak dioda flyback menghadap ke kaki (+).
 ![Step 4 Wiring Buzzer](step4_wiring_buzzer.png)
 
-#### Step 5: Pasang Modul Ethernet W5500 Biru (10-Pin Header Kuning) ke ESP32
-Sambungkan 7 pin W5500 ke baris kanan ESP32:
-- `MOSI` -> Pin `D23` (Kanan No. 1 / Paling Atas)
-- `MISO` -> Pin `D19` (Kanan No. 6 dari Atas)
-- `SCLK` -> Pin `D18` (Kanan No. 7 dari Atas)
-- `SCS`  -> Pin `D5` (Kanan No. 8 dari Atas)
-- `RST`  -> Pin `3V3` (W5500 bertipe *Active-LOW*, hubungkan ke 3.3V agar chip aktif/bangun dari reset)
-- `3.3V` -> Pin `3V3` ESP32 (Kanan Paling Bawah)
-- `GND`  -> Pin `GND` ESP32 (Kanan No. 2 dari Bawah)
+#### Step 5: Pasang Modul Ethernet W5500 Biru ke Sisi Kanan ESP32 (Rapat Urut Bawah ke Atas)
+Disusun kompak dan simetris dari bawah ke atas pada baris kanan ESP32:
+- `3.3V` -> Pin **`3V3`** (Kanan Paling Bawah / No. 1 dari Bawah)
+- `GND`  -> Pin **`GND`** (Kanan No. 2 dari Bawah)
+- `RST`  -> Pin **`D2`** (Kanan No. 4 dari Bawah)
+- `SCLK` -> Pin **`D4`** (Kanan No. 5 dari Bawah)
+- `MOSI` -> Pin **`D16`** (Kanan No. 6 dari Bawah)
+- `MISO` -> Pin **`D17`** (Kanan No. 7 dari Bawah)
+- `SCS`  -> Pin **`D5`** (Kanan No. 8 dari Bawah)
 *(Pin 5V dan INT dikosongkan/tidak dipakai).*
 ![Step 5 Wiring W5500](step5_wiring_w5500.png)
 
