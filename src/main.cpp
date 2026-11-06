@@ -39,16 +39,15 @@
 #define PIN_W5500_RST  17
 
 // ==========================================
-// INSTANCE OBJEK
+// OLED 0.91 INCH (128 x 32 PIXEL)
 // ==========================================
 #define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
+#define SCREEN_HEIGHT 32  // Layar tipis memanjang 0.91 inch
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 HardwareSerial fpSerial(2);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fpSerial);
 
-// MAC & Default IP dummy untuk deteksi awal hardware W5500
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 IPAddress ip(192, 168, 1, 199);
 
@@ -56,39 +55,49 @@ bool oledOk = false;
 bool fpOk = false;
 bool w5500Ok = false;
 
-void updateOLED(const char* statusMsg = "") {
+// Tampilan OLED untuk Layar 128x32 (32 piksel = 4 baris teks font 1 atau 2 baris font 2)
+void drawOledStandby() {
   if (!oledOk) return;
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
-  
-  // Header
+
+  // Baris 1 (y=0): Header terbalik (highlight bar)
+  display.fillRect(0, 0, 128, 9, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
   display.setTextSize(1);
-  display.setCursor(10, 0);
-  display.println("ABSENSI POE - ESP32");
-  display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
-  
-  // Status Baris 1: OLED & Fingerprint
-  display.setCursor(0, 14);
-  display.printf("OLED : %s", oledOk ? "OK (0x3C)" : "ERR");
-  display.setCursor(0, 24);
-  display.printf("AS608: %s (%d fp)", fpOk ? "OK" : "ERR", fpOk ? finger.capacity : 0);
-  
-  // Status Baris 2: W5500 & LAN Cable
-  display.setCursor(0, 34);
-  if (w5500Ok) {
-    auto link = Ethernet.linkStatus();
-    display.printf("W5500: OK (%s)", link == LinkON ? "LAN ON" : "NO LAN");
+  display.setCursor(4, 1);
+  display.print("ABSENSI POE ESP32");
+
+  // Baris 2 (y=12): Status Hardware
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 12);
+  bool lanOn = (w5500Ok && Ethernet.linkStatus() == LinkON);
+  display.printf("FP:%s  LAN:%s", fpOk ? "OK" : "ERR", lanOn ? "ON" : "OFF");
+
+  // Baris 3 (y=23): Instruksi
+  display.setCursor(0, 23);
+  display.print(">> TEMPELKAN JARI <<");
+
+  display.display();
+}
+
+void drawOledFingerTouched(bool photoSuccess) {
+  if (!oledOk) return;
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  if (photoSuccess) {
+    // Tampilan teks besar saat jari terbaca
+    display.setTextSize(2);
+    display.setCursor(8, 2);
+    display.print("JARI OK!");
+    display.setTextSize(1);
+    display.setCursor(8, 22);
+    display.print("Sidik Foto: BERHASIL");
   } else {
-    display.println("W5500: TIDAK DETEK");
-  }
-  
-  // Area Bawah: Notifikasi Sentuhan Jari
-  display.drawLine(0, 46, 127, 46, SSD1306_WHITE);
-  display.setCursor(0, 50);
-  if (statusMsg && strlen(statusMsg) > 0) {
-    display.println(statusMsg);
-  } else {
-    display.println("Tempelkan Jari...");
+    display.setTextSize(2);
+    display.setCursor(4, 8);
+    display.print("TERDETEKSI");
   }
   display.display();
 }
@@ -98,37 +107,35 @@ void setup() {
   delay(1000);
   Serial.println("\n\n========================================");
   Serial.println("  SISTEM ABSENSI POE - UJI COBA HARDWARE");
-  Serial.println("  Layout Simetris 7 Kiri vs 7 Kanan");
+  Serial.println("  Konfigurasi OLED 0.91\" (128x32)");
   Serial.println("========================================");
 
-  // 1. Inisialisasi OLED (I2C)
-  Serial.println("\n[1] Menginisialisasi OLED (SSD1306)...");
+  // 1. Inisialisasi OLED (128x32)
+  Serial.println("\n[1] Menginisialisasi OLED 0.91\" (128x32)...");
   Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
   delay(100);
 
   if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     oledOk = true;
-    Serial.println(" -> OLED SSD1306 Berhasil Terhubung (0x3C)!");
+    Serial.println(" -> OLED 128x32 Berhasil Aktif (0x3C)!");
   } else if (display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) {
     oledOk = true;
-    Serial.println(" -> OLED SSD1306 Berhasil Terhubung (0x3D)!");
+    Serial.println(" -> OLED 128x32 Berhasil Aktif (0x3D)!");
   } else {
-    Serial.println(" -> GAGAL inisialisasi OLED SSD1306.");
+    Serial.println(" -> OLED GAGAL inisialisasi.");
   }
 
-  // Tampilkan splash awal di OLED
+  // Tampilkan splash awal
   if (oledOk) {
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 15);
-    display.println("  MEMULAI PERANGKAT...");
-    display.setCursor(0, 30);
-    display.println("  Cek sensor & LAN...");
+    display.setCursor(10, 8);
+    display.print("MEMULAI...");
     display.display();
   }
 
-  // 2. Inisialisasi Sensor Sidik Jari AS608
+  // 2. Inisialisasi AS608 Fingerprint
   Serial.println("\n[2] Menginisialisasi AS608 Fingerprint...");
   pinMode(PIN_FP_TCH, INPUT);
   fpSerial.begin(57600, SERIAL_8N1, PIN_FP_RX, PIN_FP_TX);
@@ -140,15 +147,13 @@ void setup() {
     Serial.println(" -> Sensor Sidik Jari AS608 TERHUBUNG & OK!");
     finger.getParameters();
     Serial.printf("    - Kapasitas Template: %d\n", finger.capacity);
-    Serial.printf("    - Tingkat Keamanan  : %d\n", finger.security_level);
   } else {
     Serial.println(" -> Sensor AS608 TIDAK merespon.");
   }
 
-  // 3. Inisialisasi Ethernet W5500 (SPI)
+  // 3. Inisialisasi Ethernet W5500
   Serial.println("\n[3] Menginisialisasi Ethernet W5500...");
   pinMode(PIN_W5500_RST, OUTPUT);
-  // Hardware reset pulse untuk chip W5500
   digitalWrite(PIN_W5500_RST, LOW);
   delay(50);
   digitalWrite(PIN_W5500_RST, HIGH);
@@ -156,31 +161,20 @@ void setup() {
 
   SPI.begin(PIN_W5500_SCK, PIN_W5500_MISO, PIN_W5500_MOSI, PIN_W5500_CS);
   Ethernet.init(PIN_W5500_CS);
-
-  // Inisialisasi controller Ethernet
   Ethernet.begin(mac, ip);
 
-  auto hwStatus = Ethernet.hardwareStatus();
-  if (hwStatus == EthernetNoHardware) {
-    Serial.println(" -> Modul W5500 TIDAK TERDETEKSI (SPI No Hardware).");
-    Serial.println("    Periksa: CS=D27, MOSI=D26, MISO=D25, SCK=D16, RST=D17, 3.3V & GND.");
-  } else {
+  if (Ethernet.hardwareStatus() != EthernetNoHardware) {
     w5500Ok = true;
-    Serial.printf(" -> W5500 Terdeteksi Sempurna! (Tipe chip: %d)\n", (int)hwStatus);
-    auto link = Ethernet.linkStatus();
-    if (link == LinkON) {
-      Serial.println("    - Kabel LAN: Terhubung (Link ON)");
-    } else {
-      Serial.println("    - Kabel LAN: Belum dicolok (Link OFF)");
-    }
+    Serial.println(" -> Modul W5500 Terdeteksi OK!");
+  } else {
+    Serial.println(" -> Modul W5500 Tidak Terdeteksi.");
   }
 
-  // Update tampilan utama ke Layar OLED
-  updateOLED("Menunggu Jari...");
+  // Tampilkan UI Standby di Layar 128x32
+  drawOledStandby();
 
   Serial.println("\n========================================");
-  Serial.println("Setup Selesai! Layar OLED telah aktif.");
-  Serial.println("Tempelkan jari Anda ke sensor AS608 untuk pengujian!");
+  Serial.println("Setup Selesai! Layar 0.91\" siap menampilkan teks.");
   Serial.println("========================================\n");
 }
 
@@ -194,20 +188,21 @@ void loop() {
     lastTouchState = touch;
     if (touch == HIGH) {
       Serial.println("[TOUCH] Jari terdeteksi menyentuh sensor!");
-      updateOLED(">> JARI TERDETEKSI! <<");
-      // Coba ambil citra sidik jari
+      drawOledFingerTouched(false);
+
+      // Coba capture gambar sidik
       uint8_t p = finger.getImage();
       if (p == FINGERPRINT_OK) {
-        Serial.println(" -> Citra sidik jari berhasil difoto sensor!");
-        updateOLED("Foto Sidik: BERHASIL");
+        Serial.println(" -> Citra sidik jari berhasil difoto!");
+        drawOledFingerTouched(true);
       }
     } else {
       Serial.println("[TOUCH] Jari diangkat.");
-      updateOLED("Menunggu Jari...");
+      drawOledStandby();
     }
   }
 
-  // Heartbeat berkala di serial monitor
+  // Heartbeat setiap 3 detik
   if (millis() - lastHeartbeat >= 3000) {
     lastHeartbeat = millis();
     Serial.printf("[HEARTBEAT] Up: %lu s | OLED: %s | FP: %s | W5500: %s | LAN: %s\n",
@@ -216,6 +211,10 @@ void loop() {
                   fpOk ? "OK" : "ERR",
                   w5500Ok ? "OK" : "ERR",
                   (w5500Ok && Ethernet.linkStatus() == LinkON) ? "LINK ON" : "NO LINK");
+    // Refresh status link LAN di standby jika tidak sedang disentuh
+    if (digitalRead(PIN_FP_TCH) == LOW) {
+      drawOledStandby();
+    }
   }
 
   delay(30);
