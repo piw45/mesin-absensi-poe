@@ -106,9 +106,9 @@ Proyek ini menggunakan **Opsi 2**: modul Ethernet PHY **LAN8720A (RMII Native)**
   - `IO23` <-> `LAN8720A MDC`
   - `IO18` <-> `LAN8720A MDIO`
   - `IO0`  <-> `LAN8720A REFCLK / 50MHz Clock`
-* **Layar OLED 0.91" (I2C di Sisi Kiri ESP32):**
-  - `IO25` <-> `OLED SDA`
-  - `IO26` <-> `OLED SCL`
+* **Layar OLED 0.91" (I2C Hardware Bawaan ESP32 - Ada Sela/Jeda Pin Kosong):**
+  - `IO21` <-> `OLED SDA`
+  - `IO22` <-> `OLED SCL`
 * **Sensor Sidik Jari AS608 (UART2 + Touch di Sisi Kiri ESP32):**
   - `IO32` (RX2) <-> `AS608 TX` (Kabel Oranye)
   - `IO33` (TX2) <-> `AS608 RX` (Kabel Putih)
@@ -222,12 +222,13 @@ Casing dirancang presisi dengan toleransi clearance 1.5 mm di sekeliling PCB aga
 #### Step 1: Rakit Dioda Bridge, Resistor 25k & Kalibrasi XL7015 ke 5.00V
 ![Step 1 Kalibrasi XL7015](step1_kalibrasi_xl7015.png)
 
-#### Step 2: Pasang 4 Kabel Layar OLED 0.91" (`SDA, SCK, VCC, GND`) ke Sisi Kiri ESP32
-Kabel data OLED diposisikan di **SISI KIRI ESP32** agar sisi kanan tidak menumpuk dengan kabel Ethernet:
-- `SDA` OLED -> Pin **`D25`** ESP32
-- `SCK / SCL` OLED -> Pin **`D26`** ESP32
+#### Step 2: Pasang 4 Kabel Layar OLED 0.91" (`SDA, SCK, VCC, GND`) ke ESP32 (Ada Sela & Jeda Pin Kosong)
+Menggunakan pin I2C default ESP32 yang berjarak lega sehingga tidak berdesakan:
+- `SDA` OLED -> Pin **`D21`** ESP32 (Kanan No. 5 dari Atas)
+- `SCK / SCL` OLED -> Pin **`D22`** ESP32 (Kanan No. 2 dari Atas)
 - `VCC` OLED -> Pin **`3V3`** ESP32 (Kanan Paling Bawah)
 - `GND` OLED -> Pin **`GND`** ESP32 (Kiri No. 2 dari Bawah)
+> *Catatan Tata Letak:* Di antara pin D22 dan D21 ada jeda pin kosong (TX0 & RX0). Di bawah D5 juga ada jeda 5 pin kosong (D17, D16, D4, D2, D15) sehingga kabel tidak menumpuk!
 ![Step 2 Wiring OLED](step2_wiring_oled.png)
 
 #### Step 3: Pasang Kabel Sensor Sidik Jari AS608 ke Sisi Kiri ESP32 (Berdampingan di D35, D32, D33)
@@ -283,7 +284,7 @@ Gunakan library resmi ESP32 Ethernet bawaan Arduino core (`ETH.h` yang berbasis 
 #define ETH_TYPE       ETH_PHY_LAN8720
 #define ETH_CLK_MODE   ETH_CLOCK_GPIO0_IN
 
-// OLED I2C di Sisi Kiri ESP32 (IO25 SDA, IO26 SCL)
+// OLED I2C (IO21 SDA, IO22 SCL)
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
 
 // AS608 Fingerprint di Sisi Kiri ESP32 (UART2: IO32 RX2, IO33 TX2)
@@ -311,7 +312,7 @@ void WiFiEvent(WiFiEvent_t event) {
 
 void setup() {
   Serial.begin(115200);
-  Wire.begin(25, 26); // SDA=IO25, SCL=IO26 (Sisi Kiri ESP32)
+  Wire.begin(21, 22); // SDA=IO21, SCL=IO22 (I2C default ESP32)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   mySerial.begin(57600, SERIAL_8N1, 32, 33); // RX=IO32, TX=IO33 (Sisi Kiri ESP32)
   

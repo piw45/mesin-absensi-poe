@@ -267,10 +267,10 @@ def make_step2():
     lbls = []
 
     d.rectangle([0, 0, W, 90], fill=(29, 78, 216))
-    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE ESP32 (SISI KIRI: D25 & D26 - RAPI SEIMBANG)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 53), "Kabel data OLED dipindah ke SISI KIRI (D25 SDA, D26 SCL) agar sisi kanan tidak menumpuk dengan W5500!", fill=(219, 234, 254), font=get_font(17, bold=True))
+    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE ESP32 (D21 SDA & D22 SCL - BERJARAK & RAPI)", fill=(255, 255, 255), font=get_font(26, bold=True))
+    d.text((35, 53), "Menggunakan Pin Hardware Asli I2C ESP32 (D21 SDA & D22 SCL). Kabel tidak numpuk dan ada jeda pin kosong!", fill=(219, 234, 254), font=get_font(17, bold=True))
 
-    esp_coords = draw_esp32(d, 90, 130, active_left=["D25", "D26", "GND_L"], active_right=["3V3"])
+    esp_coords = draw_esp32(d, 90, 130, active_left=["GND_L"], active_right=["D22", "D21", "3V3"])
 
     ox, oy = 1020, 220
     ow, oh = 520, 340
@@ -278,8 +278,8 @@ def make_step2():
     d.rounded_rectangle([ox+130, oy+35, ox+ow-30, oy+oh-35], radius=8, fill=(10, 15, 25), outline=(56, 189, 248), width=3)
     d.text((ox+165, oy+95), "OLED 0.91\" BIRU", fill=(56, 189, 248), font=get_font(28, bold=True))
     d.text((ox+165, oy+140), "(Sesuai Foto IMG_7736)", fill=(250, 204, 21), font=get_font(19, bold=True))
-    d.text((ox+165, oy+180), "I2C SDA: D25 | SCL: D26", fill=(255, 255, 255), font=get_font(16, bold=True))
-    d.text((ox+165, oy+205), "Rapi di Sisi Kiri ESP32!", fill=(255, 255, 255), font=get_font(16, bold=True))
+    d.text((ox+165, oy+180), "I2C SDA: D21 | SCL: D22", fill=(255, 255, 255), font=get_font(16, bold=True))
+    d.text((ox+165, oy+205), "Ada Jeda Pin Kosong!", fill=(255, 255, 255), font=get_font(16, bold=True))
 
     oled_pins = [
         ("SDA", oy+65),
@@ -293,25 +293,21 @@ def make_step2():
         d.text((ox+55, py-12), pname, fill=(255, 255, 255), font=get_font(21, bold=True, mono=True))
         oled_pts[pname] = (ox+15, py)
 
-    # 1. SDA -> D25 (Sisi Kiri No. 8 dari Atas)
+    # 1. SDA -> D21 (Kanan No. 5 dari Atas)
     draw_wire(d, [
         oled_pts["SDA"],
-        (940, oled_pts["SDA"][1]),
-        (940, 105),
-        (55, 105),
-        (55, esp_coords["D25"][1]),
-        esp_coords["D25"]
-    ], (16, 185, 129), width=7, label="1. Pin SDA OLED  --->  Pin D25 ESP32 (Sisi Kiri No. 8 dari Atas)", label_pos=(520, 95), labels_queue=lbls)
+        (650, oled_pts["SDA"][1]),
+        (650, esp_coords["D21"][1]),
+        esp_coords["D21"]
+    ], (16, 185, 129), width=7, label="1. Pin SDA OLED  --->  Pin D21 ESP32 (Kanan No. 5 dari Atas)", label_pos=(520, 280), labels_queue=lbls)
 
-    # 2. SCK / SCL -> D26 (Sisi Kiri No. 9 dari Atas)
+    # 2. SCK / SCL -> D22 (Kanan No. 2 dari Atas)
     draw_wire(d, [
         oled_pts["SCK"],
-        (900, oled_pts["SCK"][1]),
-        (900, 118),
-        (45, 118),
-        (45, esp_coords["D26"][1]),
-        esp_coords["D26"]
-    ], (37, 99, 235), width=7, label="2. Pin SCK / SCL OLED  --->  Pin D26 ESP32 (Sisi Kiri No. 9 dari Atas)", label_pos=(520, 140), labels_queue=lbls)
+        (720, oled_pts["SCK"][1]),
+        (720, esp_coords["D22"][1]),
+        esp_coords["D22"]
+    ], (37, 99, 235), width=7, label="2. Pin SCK / SCL OLED  --->  Pin D22 ESP32 (Kanan No. 2 dari Atas)", label_pos=(520, 200), labels_queue=lbls)
 
     # 3. VCC -> 3V3 (Kanan Paling Bawah)
     draw_wire(d, [
@@ -334,15 +330,15 @@ def make_step2():
     flush_labels(d, lbls)
 
     d.rounded_rectangle([520, 685, 1550, 965], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
-    d.text((545, 705), "SKEMA PIN BARU (SEIMBANG KIRI-KANAN):", fill=(22, 101, 52), font=get_font(20, bold=True))
+    d.text((545, 705), "KEUNGGULAN SKEMA D21 & D22 (BERJARAK LEGA & TIDAK NUMPUK):", fill=(22, 101, 52), font=get_font(20, bold=True))
     tips = [
-        "1. KABEL DATA I2C PINDAH KE SISI KIRI: SDA ke D25, SCL ke D26 (GPIO Matrix ESP32).",
-        "2. Di kode Arduino: Cukup gunakan 'Wire.begin(25, 26);' (SDA=25, SCL=26).",
-        "3. Sisi Kanan sekarang bersih dan khusus disediakan untuk jalur modul Ethernet W5500.",
-        "4. Tulisan 'SCK' pada papan OLED Anda sama artinya dengan 'SCL' (Clock I2C)."
+        "1. D21 dan D22 adalah pin I2C ASLI ESP32: Tidak butuh konfigurasi khusus (langsung jalan!).",
+        "2. ADA JEDA PIN KOSONG: Di antara D22 dan D21 ada pin TX0 & RX0 yang kosong (kabel tidak berdesakan).",
+        "3. DI BAWAHNYA ADA JEDA KOSONG LAGI: Pin D17, D16, D4, D2, D15 semuanya KOSONG!",
+        "4. Colokan kabel jumper jadi sangat leluasa ditancap dan dicabut dengan jari tanpa sempit."
     ]
     for i, t in enumerate(tips):
-        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,1])))
+        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,1,2])))
 
     save_both(img, "step2_wiring_oled.png")
 
@@ -357,7 +353,7 @@ def make_step3():
     lbls = []
 
     d.rectangle([0, 0, W, 95], fill=(185, 28, 28))
-    d.text((35, 12), "STEP 3: KABEL SENSOR AS608 KE SISI KIRI ESP32 (D32, D33, D35 - RAPI SEIMBANG)", fill=(255, 255, 255), font=get_font(26, bold=True))
+    d.text((35, 12), "STEP 3: KABEL SENSOR AS608 DI SISI KIRI ESP32 (D35 TOUCH, D32 TX, D33 RX - BERJARAK)", fill=(255, 255, 255), font=get_font(26, bold=True))
     d.text((35, 50), "Kabel data Sensor Sidik Jari dipindah ke SISI KIRI (D32 RX2, D33 TX2) berdampingan dengan Pin Sentuh D35!", fill=(254, 240, 138), font=get_font(16, bold=True))
 
     esp_coords = draw_esp32(d, 90, 140, active_left=["D35", "D32", "D33", "GND_L"], active_right=["3V3"])
@@ -451,12 +447,12 @@ def make_step3():
     flush_labels(d, lbls)
 
     d.rounded_rectangle([510, 680, 1560, 890], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
-    d.text((530, 695), "SKEMA PIN BARU AS608 DI SISI KIRI (BERDAMPINGAN D35, D32, D33):", fill=(22, 101, 52), font=get_font(19, bold=True))
+    d.text((530, 695), "SISI KIRI DENGAN JEDA PIN KOSONG (BERSIH & TIDAK BERDESAKAN):", fill=(22, 101, 52), font=get_font(19, bold=True))
     notes = [
-        "1. KABEL DATA PINDAH KE SISI KIRI: TX Oranye ke D32, RX Putih ke D33 (Tepat di bawah Pin Touch D35).",
-        "2. Di kode Arduino: Cukup gunakan 'mySerial.begin(57600, SERIAL_8N1, 32, 33);' (RX=32, TX=33).",
-        "3. Pin V+ dan VA tetap disatukan ke 3V3 (Kabel Coklat + Kuning), Kabel Biru ke GND.",
-        "4. Kabel HITAM (D+) dan MERAH (D-) adalah USB, tetap dikosongkan/jangan disambung."
+        "1. Bagian Atas: Pin EN, VP, VN, D34 KOSONG (Jeda 4 pin bebas).",
+        "2. Sensor Sidik Jari: Hijau di D35, Oranye di D32, Putih di D33.",
+        "3. Di Bawah Sensor: Pin D25, D26, D27 KOSONG (Jeda 3 pin bebas ke Buzzer D14!).",
+        "4. Buzzer di D14. Di bawahnya: D12 dan D13 KOSONG (Jeda 2 pin bebas ke GND & VIN!)."
     ]
     for i, n in enumerate(notes):
         d.text((530, 732 + i*34), n, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,1])))
