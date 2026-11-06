@@ -289,10 +289,10 @@ Gunakan library resmi ESP32 Ethernet bawaan Arduino core (`ETH.h` yang berbasis 
 #define ETH_TYPE       ETH_PHY_LAN8720
 #define ETH_CLK_MODE   ETH_CLOCK_GPIO0_IN
 
-// OLED I2C (IO25 SDA, IO26 SCL)
+// OLED I2C di Kiri Bawah ESP32 (IO13 SDA, IO14 SCL)
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
 
-// AS608 Fingerprint di Sisi Kiri ESP32 (UART2: IO32 RX2, IO33 TX2)
+// AS608 Fingerprint di Kanan Bawah ESP32 (UART2: IO15 RX2, IO2 TX2)
 HardwareSerial mySerial(2);
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
 
