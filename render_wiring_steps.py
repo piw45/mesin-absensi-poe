@@ -462,10 +462,10 @@ def make_step4():
     lbls = []
 
     d.rectangle([0, 0, W, 90], fill=(22, 101, 52))
-    d.text((35, 15), "STEP 4: CARA PASANG BUZZER 3.3V, RESISTOR 1K & DIODA KE ESP32", fill=(255, 255, 255), font=get_font(28, bold=True))
-    d.text((35, 53), "Menggunakan pin D14 (Kiri No. 5 dari Bawah) dan GND pada ESP32 sesuai foto IMG_7735", fill=(187, 247, 208), font=get_font(18, bold=True))
+    d.text((35, 15), "STEP 4: CARA PASANG BUZZER KE PIN D12/D32 ATAU MEMAKAI INDIKATOR OLED", fill=(255, 255, 255), font=get_font(28, bold=True))
+    d.text((35, 53), "Catatan Khusus: Pin D14 & D13 kini dipakai penuh oleh Layar OLED 0.91\" (I2C) agar simetris 7 vs 7 pin!", fill=(187, 247, 208), font=get_font(18, bold=True))
 
-    esp_coords = draw_esp32(d, 90, 140, active_left=["D14", "GND_L"], active_right=[])
+    esp_coords = draw_esp32(d, 90, 140, active_left=["D14", "D13", "GND_L"], active_right=[])
 
     bx, by = 1190, 250
     d.ellipse([bx, by, bx+260, by+260], fill=(15, 23, 42), outline=(71, 85, 105), width=5)
