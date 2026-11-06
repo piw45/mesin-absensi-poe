@@ -113,12 +113,12 @@ Proyek ini menggunakan **Opsi 2**: modul Ethernet PHY **LAN8720A (RMII Native)**
   - `IO15` (RX2) <-> `AS608 TX` (Kabel Oranye)
   - `IO2`  (TX2) <-> `AS608 RX` (Kabel Putih)
   - `IO4`  (Input) <-> `AS608 Touch Out` (Kabel Hijau, dengan pull-down 10k ke GND)
-* **Modul Ethernet W5500 (SPI di Sisi Kiri ESP32):**
-  - `IO25` <-> `W5500 SCS`
-  - `IO26` <-> `W5500 MOSI`
-  - `IO27` <-> `W5500 MISO`
-  - `IO33` <-> `W5500 SCLK`
-  - `IO32` <-> `W5500 RST`
+* **Modul Ethernet W5500 (SPI Terbagi Simetris - Tepat 7 Pin Kiri & 7 Pin Kanan):**
+  - `IO27` <-> `W5500 SCS` (Kiri No. 6)
+  - `IO26` <-> `W5500 MOSI` (Kiri No. 7)
+  - `IO25` <-> `W5500 MISO` (Kiri No. 8)
+  - `IO16` <-> `W5500 SCLK` (Kanan No. 6)
+  - `IO17` <-> `W5500 RST` (Kanan No. 7)
 * **Buzzer Aktif:**
   - `IO14` <-> Resistor R6 1k <-> Anoda Buzzer (+) diparalel Dioda Flyback D6.
 
@@ -253,15 +253,15 @@ Seluruh kabel sensor sidik jari AS608 ditata di **SISI KANAN BAWAH** langsung se
 > - **Jika menggunakan Active Buzzer 3.3V:** Bisa langsung dihubungkan: Pin `D14` -> Resistor 1k -> Kaki (+) Buzzer, dan Kaki (-) Buzzer ke `GND`. Gelang perak dioda flyback menghadap ke kaki (+).
 ![Step 4 Wiring Buzzer](step4_wiring_buzzer.png)
 
-#### Step 5: Pasang Modul Ethernet W5500 Biru ke Sisi Kiri ESP32
-Kabel SPI modul W5500 masuk ke sisi kiri ESP32:
-- `3.3V` -> Pin **`3V3`** ESP32
-- `GND`  -> Pin **`GND`** ESP32
-- `SCS`  -> Pin **`D25`** ESP32
-- `MOSI` -> Pin **`D26`** ESP32
-- `MISO` -> Pin **`D27`** ESP32
-- `SCLK` -> Pin **`D33`** ESP32
-- `RST`  -> Pin **`D32`** ESP32
+#### Step 5: Pasang Modul Ethernet W5500 Biru (Simetris Sempurna 7 vs 7 Pin)
+Kabel SPI modul W5500 ditata melengkapi sisi kiri dan kanan sehingga jumlah pin terpakai sama persis (7 di kiri, 7 di kanan):
+- `3.3V` -> Pin **`3V3`** (Kanan No. 1)
+- `GND`  -> Pin **`GND`** (Kanan No. 2)
+- `RST`  -> Pin **`D17`** (Kanan No. 7 dari Bawah)
+- `SCLK` -> Pin **`D16`** (Kanan No. 6 dari Bawah)
+- `MISO` -> Pin **`D25`** (Kiri No. 8 dari Bawah)
+- `MOSI` -> Pin **`D26`** (Kiri No. 7 dari Bawah)
+- `SCS`  -> Pin **`D27`** (Kiri No. 6 dari Bawah)
 *(Pin 5V dan INT dikosongkan/tidak dipakai).*
 ![Step 5 Wiring W5500](step5_wiring_w5500.png)
 
@@ -320,7 +320,7 @@ void setup() {
   Wire.begin(13, 14); // SDA=IO13, SCL=IO14 (OLED Kiri Bawah)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   mySerial.begin(57600, SERIAL_8N1, 15, 2); // RX=IO15, TX=IO2 (Sensor Kanan Bawah)
-  SPI.begin(33, 27, 26, 25); // SCLK=33, MISO=27, MOSI=26, SS/SCS=25 (Ethernet W5500)
+  SPI.begin(16, 25, 26, 27); // SCLK=16, MISO=25, MOSI=26, SS/SCS=27 (Simetris 7 vs 7 Pin)
   
   WiFi.onEvent(WiFiEvent);
   ETH.begin(ETH_TYPE, ETH_ADDR, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_POWER_PIN, ETH_CLK_MODE);

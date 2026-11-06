@@ -267,8 +267,8 @@ def make_step2():
     lbls = []
 
     d.rectangle([0, 0, W, 90], fill=(29, 78, 216))
-    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE SISI KIRI BAWAH ESP32 (D13 SDA & D14 SCL)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 53), "Kabel Layar OLED ditata rapat di Sisi Kiri Bawah (D13 SDA & D14 SCL) tepat di atas pin GND!", fill=(219, 234, 254), font=get_font(17, bold=True))
+    d.text((35, 15), "STEP 2: PASANG LAYAR OLED 0.91\" KE SISI KIRI ESP32 (D13 SDA & D14 SCL - PERSIS 7 PIN KIRI/KANAN)", fill=(255, 255, 255), font=get_font(24, bold=True))
+    d.text((35, 53), "Kiri dan Kanan memakai jumlah pin yang SAMA PERSIS (7 Pin Kiri & 7 Pin Kanan). Rapat simetris dari bawah ke atas!", fill=(219, 234, 254), font=get_font(17, bold=True))
 
     esp_coords = draw_esp32(d, 90, 130, active_left=["D14", "D13", "GND_L"], active_right=["3V3"])
 
@@ -279,7 +279,7 @@ def make_step2():
     d.text((ox+165, oy+95), "OLED 0.91\" BIRU", fill=(56, 189, 248), font=get_font(28, bold=True))
     d.text((ox+165, oy+140), "(Sesuai Foto IMG_7736)", fill=(250, 204, 21), font=get_font(19, bold=True))
     d.text((ox+165, oy+180), "I2C SDA: D13 | SCL: D14", fill=(255, 255, 255), font=get_font(16, bold=True))
-    d.text((ox+165, oy+205), "Rapat di Kiri Bawah!", fill=(255, 255, 255), font=get_font(16, bold=True))
+    d.text((ox+165, oy+205), "Presisi 7 Pin Kiri / Kanan!", fill=(255, 255, 255), font=get_font(16, bold=True))
 
     oled_pins = [
         ("SDA", oy+65),
@@ -334,15 +334,15 @@ def make_step2():
     flush_labels(d, lbls)
 
     d.rounded_rectangle([520, 685, 1550, 965], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
-    d.text((545, 705), "SKEMA PIN OLED DI KIRI BAWAH (KOMPAK DENGAN POWER):", fill=(22, 101, 52), font=get_font(20, bold=True))
+    d.text((545, 705), "JUMLAH PIN SAMA PERSIS (7 KIRI & 7 KANAN):", fill=(22, 101, 52), font=get_font(20, bold=True))
     tips = [
-        "1. KIRI BAWAH: VIN (No. 1) -> GND (No. 2) -> D13 SDA (No. 3) -> D14 SCL (No. 5).",
-        "2. Di kode Arduino: Gunakan 'Wire.begin(13, 14);' (SDA=13, SCL=14).",
-        "3. Kanan Bawah: 3V3 (No. 1) -> GND (No. 2) -> D15 & D2 & D4 (Sensor AS608).",
-        "4. Kiri dan Kanan sekarang terbagi rata dan sama-sama rapi dari bawah ke atas!"
+        "1. TOTAL 7 PIN DI SISI KIRI : VIN, GND, D13 (SDA), D14 (SCL), D27 (SCS), D26 (MOSI), D25 (MISO).",
+        "2. TOTAL 7 PIN DI SISI KANAN: 3V3, GND, D15 (TX), D2 (RX), D4 (TCH), D16 (SCLK), D17 (RST).",
+        "3. Kiri dan Kanan sama-sama terisi sampai pin No. 8 dari bawah. Bagian atas kosong simetris!",
+        "4. Di kode Arduino: Gunakan 'Wire.begin(13, 14);' (SDA=13, SCL=14)."
     ]
     for i, t in enumerate(tips):
-        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,1])))
+        d.text((545, 745 + i*38), t, fill=(15, 23, 42), font=get_font(16, bold=(i in [0,1,2])))
 
     save_both(img, "step2_wiring_oled.png")
 
@@ -358,7 +358,7 @@ def make_step3():
 
     d.rectangle([0, 0, W, 95], fill=(185, 28, 28))
     d.text((35, 12), "STEP 3: KABEL SENSOR AS608 DI SISI KANAN BAWAH ESP32 (D15 TX, D2 RX, D4 TCH)", fill=(255, 255, 255), font=get_font(26, bold=True))
-    d.text((35, 50), "Sensor Sidik Jari AS608 ditata di SISI KANAN BAWAH rapat naik dari pin 3V3 & GND (Kiri & Kanan Terbagi Rata!)", fill=(254, 240, 138), font=get_font(16, bold=True))
+    d.text((35, 50), "Sensor Sidik Jari AS608 ditata di SISI KANAN BAWAH persis sejajar pin 3V3 & GND (Jumlah Pin Sama Persis 7 vs 7!)", fill=(254, 240, 138), font=get_font(16, bold=True))
 
     esp_coords = draw_esp32(d, 90, 140, active_left=[], active_right=["D4", "D2", "D15", "GND_R", "3V3"])
 
@@ -441,10 +441,10 @@ def make_step3():
     d.rounded_rectangle([510, 680, 1560, 890], radius=14, fill=(240, 253, 244), outline=(22, 101, 52), width=3)
     d.text((530, 695), "URUTAN PIN AS608 DI SISI KANAN BAWAH (SEJAJAR PIN POWER):", fill=(22, 101, 52), font=get_font(19, bold=True))
     notes = [
-        "1. KANAN BAWAH: 3V3 (V+ & VA) -> GND (Kabel Biru) -> D15 (TX Oranye) -> D2 (RX Putih) -> D4 (TCH Hijau).",
-        "2. KIRI BAWAH : VIN (Power XL) -> GND -> D13 (OLED SDA) -> D14 (OLED SCL).",
-        "3. KIRI TENGAH: D25, D26, D27, D33, D32 (Khusus Jalur Ethernet W5500).",
-        "4. Kiri dan Kanan sekarang benar-benar terbagi rata 50:50 mulai dari pin paling bawah!"
+        "1. KANAN BAWAH (AS608): 3V3 -> GND -> D15 (TX Oranye) -> D2 (RX Putih) -> D4 (TCH Hijau).",
+        "2. KANAN ATAS (W5500) : D16 (SCLK) -> D17 (RST) -> selesai (Tepat 7 pin kanan terpakai!).",
+        "3. KIRI BAWAH (Power & OLED): VIN -> GND -> D13 (SDA) -> D14 (SCL).",
+        "4. KIRI ATAS (W5500): D27 (SCS) -> D26 (MOSI) -> D25 (MISO) -> selesai (Tepat 7 pin kiri terpakai!)."
     ]
     for i, n in enumerate(notes):
         d.text((530, 732 + i*34), n, fill=(15, 23, 42), font=get_font(15, bold=(i in [0,1])))
