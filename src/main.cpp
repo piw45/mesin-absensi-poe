@@ -5,6 +5,7 @@
 #include <Adafruit_Fingerprint.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <Preferences.h>
 
 // ==========================================
 // PINOUT SIMETRIS 7 KIRI vs 7 KANAN
@@ -13,12 +14,13 @@
 // 1. VIN  -> +5V
 // 2. GND  -> Ground
 // 3. D13  -> OLED SDA
-// 4. D12  -> (KOSONG / STRAPPING PIN)
+// 4. D12  -> BUZZER (+)
 // 5. D14  -> OLED SCL
 // 6. D27  -> W5500 SCS / CS
 // 7. D26  -> W5500 MOSI
 // 8. D25  -> W5500 MISO
 #define PIN_OLED_SDA   13
+#define PIN_BUZZER     12
 #define PIN_OLED_SCL   14
 #define PIN_W5500_CS   27
 #define PIN_W5500_MOSI 26
@@ -63,10 +65,181 @@ bool lanConnected = false;
 
 // Teks tampilan utama yang dapat dikontrol Admin (1 baris besar)
 String adminMessage = "TEMPEL JARI";
+String lastDisplayedScan = "";
 int lastScannedID = -1;
+unsigned long statusHoldUntil = 0;
+Preferences fpPrefs;
+Preferences fpTplPrefs;
+String lastEnrolledTemplateHex = "";
+
+// ==========================================
+// EKSTRAKSI & TRANSFER TEMPLATE 512-BYTE (SERVER <-> SENSOR RAM)
+// ==========================================
+String extractTemplateHexFromBuffer() {
+  while (fpSerial.available()) fpSerial.read();
+  if (finger.getModel() != FINGERPRINT_OK) return "";
+
+  uint8_t tplBytes[512];
+  int tplLen = 0;
+  unsigned long t0 = millis();
+
+  while (millis() - t0 < 2000 && tplLen < 512) {
+    if (!fpSerial.available()) {
+      delay(1);
+      continue;
+    }
+    if (fpSerial.read() != 0xEF) continue;
+    while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+    if (fpSerial.read() != 0x01) continue;
+
+    // Skip 4 byte address
+    for (int a = 0; a < 4; a++) {
+      while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+      fpSerial.read();
+    }
+    while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+    uint8_t pid = fpSerial.read();
+    while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+    uint8_t lenHi = fpSerial.read();
+    while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+    uint8_t lenLo = fpSerial.read();
+    uint16_t pktLen = ((uint16_t)lenHi << 8) | lenLo;
+    if (pktLen < 2) continue;
+    uint16_t dataLen = pktLen - 2;
+
+    for (uint16_t d = 0; d < dataLen; d++) {
+      while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+      uint8_t b = fpSerial.read();
+      if ((pid == 0x02 || pid == 0x08) && tplLen < 512) {
+        tplBytes[tplLen++] = b;
+      }
+    }
+    // Baca 2 byte checksum
+    for (int c = 0; c < 2; c++) {
+      while (!fpSerial.available() && millis() - t0 < 2000) delay(1);
+      fpSerial.read();
+    }
+    if (pid == 0x08) break;
+  }
+
+  if (tplLen < 512) return "";
+  String hex = "";
+  hex.reserve(1024);
+  const char* hexChars = "0123456789ABCDEF";
+  for (int i = 0; i < 512; i++) {
+    hex += hexChars[(tplBytes[i] >> 4) & 0x0F];
+    hex += hexChars[tplBytes[i] & 0x0F];
+  }
+  return hex;
+}
+
+bool loadTemplateHexToBuffer(const String& hexStr, uint8_t bufferSlot) {
+  if (hexStr.length() < 1024) return false;
+  uint8_t cmdData[2] = { 0x09, bufferSlot }; // 0x09 = PS_DownChar
+  Adafruit_Fingerprint_Packet cmdPkt(FINGERPRINT_COMMANDPACKET, 2, cmdData);
+  while (fpSerial.available()) fpSerial.read();
+  finger.writeStructuredPacket(cmdPkt);
+  if (finger.getStructuredPacket(&cmdPkt) != FINGERPRINT_OK) return false;
+  if (cmdPkt.type != FINGERPRINT_ACKPACKET || cmdPkt.data[0] != FINGERPRINT_OK) return false;
+
+  auto hexVal = [](char c) -> uint8_t {
+    return (c >= '0' && c <= '9') ? (c - '0') :
+           (c >= 'A' && c <= 'F') ? (c - 'A' + 10) :
+           (c >= 'a' && c <= 'f') ? (c - 'a' + 10) : 0;
+  };
+
+  // Kirim 4 paket data @ 128 byte = 512 byte
+  for (int pkt = 0; pkt < 4; pkt++) {
+    uint8_t pid = (pkt == 3) ? 0x08 : 0x02;
+    uint16_t wireLen = 128 + 2;
+    uint16_t sum = pid + (wireLen >> 8) + (wireLen & 0xFF);
+    uint8_t hdr[9] = {
+      0xEF, 0x01, 0xFF, 0xFF, 0xFF, 0xFF,
+      pid, (uint8_t)(wireLen >> 8), (uint8_t)(wireLen & 0xFF)
+    };
+    fpSerial.write(hdr, 9);
+    for (int i = 0; i < 128; i++) {
+      int charIdx = (pkt * 128 + i) * 2;
+      uint8_t b = (hexVal(hexStr[charIdx]) << 4) | hexVal(hexStr[charIdx + 1]);
+      fpSerial.write(b);
+      sum += b;
+    }
+    fpSerial.write((uint8_t)(sum >> 8));
+    fpSerial.write((uint8_t)(sum & 0xFF));
+    delay(8);
+  }
+  return true;
+}
+
+bool matchSensorBuffers(uint16_t& scoreOut) {
+  uint8_t cmdData[1] = { 0x03 }; // 0x03 = PS_Match (bandingkan CharBuffer1 & CharBuffer2 di RAM)
+  Adafruit_Fingerprint_Packet pkt(FINGERPRINT_COMMANDPACKET, 1, cmdData);
+  finger.writeStructuredPacket(pkt);
+  if (finger.getStructuredPacket(&pkt) != FINGERPRINT_OK) return false;
+  if (pkt.type == FINGERPRINT_ACKPACKET && pkt.data[0] == FINGERPRINT_OK) {
+    scoreOut = ((uint16_t)pkt.data[1] << 8) | pkt.data[2];
+    return true;
+  }
+  return false;
+}
+
+String getSlotName(int slotId) {
+  String key = "s" + String(slotId);
+  String name = fpPrefs.getString(key.c_str(), "");
+  if ((name.length() == 0 || name == "RIZAL") && slotId == 1) return "A. RIZAL KHABIBI YUNANTA";
+  return name;
+}
+
+void saveSlotName(int slotId, String name) {
+  name.trim();
+  name.toUpperCase();
+  if (slotId > 0 && name.length() > 0) {
+    String key = "s" + String(slotId);
+    if (fpPrefs.getString(key.c_str(), "") != name) {
+      fpPrefs.putString(key.c_str(), name);
+    }
+  }
+}
 
 // Forward declaration
 bool enrollFingerprint(int id);
+
+unsigned long ledOffCooldownUntil = 0;
+
+void setSensorStandby() {
+  if (!fpOk) return;
+  finger.LEDcontrol(false);
+  ledOffCooldownUntil = millis() + 800; // Redam lonjakan sinyal TCH setelah lampu mati
+}
+
+void playPassiveTone(int freqHz, int durationMs) {
+  if (freqHz <= 0 || durationMs <= 0) return;
+  unsigned long periodUs = 1000000UL / freqHz;
+  unsigned long highUs = periodUs / 12UL; // Duty cycle ~8% agar suara halus & tidak berisik
+  if (highUs < 15) highUs = 15;
+  unsigned long lowUs = periodUs - highUs;
+  unsigned long totalCycles = ((unsigned long)durationMs * 1000UL) / periodUs;
+  for (unsigned long c = 0; c < totalCycles; c++) {
+    digitalWrite(PIN_BUZZER, HIGH);
+    delayMicroseconds(highUs);
+    digitalWrite(PIN_BUZZER, LOW);
+    delayMicroseconds(lowUs);
+  }
+  digitalWrite(PIN_BUZZER, LOW);
+}
+
+void beepBuzzer(int durationMs, int count = 1) {
+  if (durationMs >= 150 && count == 1) {
+    // Nada gagal / error (frekuensi rendah 850 Hz, singkat & halus)
+    playPassiveTone(850, 140);
+    return;
+  }
+  for (int i = 0; i < count; i++) {
+    int freq = (count == 2 && i == 1) ? 2700 : 2200;
+    playPassiveTone(freq, 45);
+    if (i + 1 < count) delay(45);
+  }
+}
 
 // ==========================================
 // TAMPILAN OLED 1 BARIS HURUF BESAR
@@ -74,29 +247,113 @@ bool enrollFingerprint(int id);
 void showBigText(String text) {
   if (!oledOk) return;
   text.trim();
-  display.clearDisplay();
+  display.setTextWrap(false);
   display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2); // Selalu gunakan Font Size 2 (tinggi 16px, huruf besar 1 baris)
 
   int len = text.length();
-  // Gunakan Font Size 2 (Tinggi 16px, lebar 12px) agar huruf besar & tegas
-  int size = (len <= 10) ? 2 : 1;
-  int charW = size * 6;
-  int charH = size * 8;
+  int textPixelW = len * 12 - 2;
+  int y = (SCREEN_HEIGHT - 16) / 2;
 
-  // Posisikan tepat di tengah layar secara horizontal dan vertikal
-  int x = (SCREEN_WIDTH - (len * charW)) / 2;
-  if (x < 0) x = 0;
-  int y = (SCREEN_HEIGHT - charH) / 2;
+  if (len <= 11) {
+    display.clearDisplay();
+    int x = (SCREEN_WIDTH - textPixelW) / 2;
+    if (x < 0) x = 0;
+    display.setCursor(x, y);
+    display.print(text);
+    display.display();
+  } else {
+    // Jika lebih dari 11 huruf (contoh: "SUKSES RIZAL"), tampilkan & geser halus 1 baris besar
+    display.clearDisplay();
+    display.setCursor(2, y);
+    display.print(text);
+    display.display();
+    delay(350);
 
-  display.setTextSize(size);
-  display.setCursor(x, y);
-  display.print(text);
-  display.display();
+    int minX = SCREEN_WIDTH - textPixelW - 2;
+    for (int x = 2; x >= minX; x -= 4) {
+      display.clearDisplay();
+      display.setCursor(x, y);
+      display.print(text);
+      display.display();
+      delay(18);
+    }
+  }
 }
 
 // ==========================================
 // KOMUNIKASI OTOMATIS KE SERVER DENANYAR
 // ==========================================
+bool uploadTemplateToServer(int slotId, int mhsId, const String& hexTpl) {
+  if (!lanConnected || Ethernet.linkStatus() != LinkON || hexTpl.length() < 1024) return false;
+  EthernetClient client;
+  client.setTimeout(3000);
+  if (!client.connect(serverHost, serverPort)) return false;
+
+  String body = "template=" + hexTpl;
+  String url = "/admin/api-mesin.php?action=upload_template&mac=DEADBEEFFEED&finger_id=" + String(slotId) + "&mahasiswa_id=" + String(mhsId);
+  client.print(String("POST ") + url + " HTTP/1.1\r\n" +
+               "Host: " + serverHost + "\r\n" +
+               "Content-Type: application/x-www-form-urlencoded\r\n" +
+               "Content-Length: " + String(body.length()) + "\r\n" +
+               "Connection: close\r\n\r\n" +
+               body);
+
+  unsigned long t0 = millis();
+  while (client.connected() && millis() - t0 < 2500) {
+    if (client.available()) client.read();
+  }
+  client.stop();
+  Serial.printf("[SERVER] Template 512-byte ID #%d berhasil disimpan ke Database Server!\n", slotId);
+  return true;
+}
+
+// Pencocokan langsung ke Database Server via RAM Sensor (CharBuffer1 vs CharBuffer2) TANPA menyimpan di sensor
+int matchFingerAgainstServer(uint16_t& scoreOut) {
+  if (!lanConnected || Ethernet.linkStatus() != LinkON) return -1;
+  EthernetClient client;
+  client.setTimeout(3000);
+  if (!client.connect(serverHost, serverPort)) return -1;
+
+  client.print(String("GET /admin/api-mesin.php?action=list_templates HTTP/1.1\r\n") +
+               "Host: " + serverHost + "\r\n" +
+               "Connection: close\r\n\r\n");
+
+  unsigned long t0 = millis();
+  bool isBody = false;
+  while ((client.connected() || client.available()) && millis() - t0 < 8000) {
+    if (!client.available()) {
+      delay(1);
+      continue;
+    }
+    String line = client.readStringUntil('\n');
+    line.trim();
+    if (!isBody) {
+      if (line.length() == 0) isBody = true;
+      continue;
+    }
+    if (line == "END") break;
+    if (line.startsWith("ITEM:")) {
+      int c1 = 5;
+      int c2 = line.indexOf(':', c1);
+      if (c2 > c1) {
+        int slotId = line.substring(c1, c2).toInt();
+        String hexTpl = line.substring(c2 + 1);
+        if (slotId > 0 && hexTpl.length() >= 1024) {
+          uint16_t sc = 0;
+          if (loadTemplateHexToBuffer(hexTpl, 2) && matchSensorBuffers(sc)) {
+            scoreOut = sc;
+            client.stop();
+            return slotId;
+          }
+        }
+      }
+    }
+  }
+  client.stop();
+  return -1;
+}
+
 void syncWithServerDenanyar(const char* action, int fingerId) {
   if (!lanConnected || Ethernet.linkStatus() != LinkON) return;
 
@@ -140,41 +397,103 @@ void syncWithServerDenanyar(const char* action, int fingerId) {
 
     Serial.println(" -> Respon Server: " + responseLine);
 
-    // Jika server memberikan perintah ganti pesan tampilan (format MSG:TEKS)
-    int idx = responseLine.indexOf("MSG:");
-    if (idx >= 0) {
-      String newMsg = responseLine.substring(idx + 4);
-      int spaceIdx = newMsg.indexOf(' ');
-      if (spaceIdx > 0) newMsg = newMsg.substring(0, spaceIdx);
-      int endIdx = newMsg.indexOf('"');
-      if (endIdx > 0) newMsg = newMsg.substring(0, endIdx);
-      newMsg.trim();
-      if (newMsg.length() > 0 && newMsg.length() <= 10 && newMsg != adminMessage) {
-        adminMessage = newMsg;
-        showBigText(adminMessage);
-        Serial.printf("[SERVER] Teks layar diperbarui oleh server: \"%s\"\n", adminMessage.c_str());
+    // 0. Sinkronkan daftar nama panggilan mahasantri per slot ("fp_map":"1:RIZAL,2:AHMAD")
+    int mIdx = responseLine.indexOf("\"fp_map\":\"");
+    if (mIdx >= 0) {
+      int start = mIdx + 10;
+      int end = responseLine.indexOf("\"", start);
+      if (end > start) {
+        String mapStr = responseLine.substring(start, end);
+        int pos = 0;
+        while (pos < (int)mapStr.length()) {
+          int comma = mapStr.indexOf(',', pos);
+          if (comma == -1) comma = mapStr.length();
+          String pair = mapStr.substring(pos, comma);
+          int colon = pair.indexOf(':');
+          if (colon > 0) {
+            int sId = pair.substring(0, colon).toInt();
+            String sName = pair.substring(colon + 1);
+            saveSlotName(sId, sName);
+          }
+          pos = comma + 1;
+        }
       }
     }
 
-    // Jika server mengirimkan perintah khusus (format CMD:ENROLL:slot:mhs_id)
-    int cmdIdx = responseLine.indexOf("CMD:ENROLL:");
-    if (cmdIdx >= 0) {
-      String cmdData = responseLine.substring(cmdIdx + 11);
-      int endCmd = cmdData.indexOf('"');
-      if (endCmd > 0) cmdData = cmdData.substring(0, endCmd);
-      cmdData.trim();
+    // Simpan panggilan jika ada di respon absen ("panggilan":"RIZAL")
+    int pIdx = responseLine.indexOf("\"panggilan\":\"");
+    if (pIdx >= 0 && fingerId > 0) {
+      int start = pIdx + 13;
+      int end = responseLine.indexOf("\"", start);
+      if (end > start) {
+        saveSlotName(fingerId, responseLine.substring(start, end));
+      }
+    }
 
-      int sep = cmdData.indexOf(':');
-      int enrollSlot = (sep > 0) ? cmdData.substring(0, sep).toInt() : cmdData.toInt();
-      int mhsId = (sep > 0) ? cmdData.substring(sep + 1).toInt() : 0;
+    // 1. Perbarui teks layar jika server mengirimkan display baru (JSON format "display":"...")
+    int dIdx = responseLine.indexOf("\"display\":\"");
+    if (dIdx >= 0) {
+      int start = dIdx + 11;
+      int end = responseLine.indexOf("\"", start);
+      if (end > start) {
+        String newMsg = responseLine.substring(start, end);
+        newMsg.trim();
+        if (strcmp(action, "ping") == 0) {
+          if (newMsg.length() > 0 && newMsg != adminMessage) {
+            adminMessage = newMsg;
+            if (millis() >= statusHoldUntil) {
+              showBigText(adminMessage);
+            }
+            Serial.printf("[SERVER] Teks layar standby diperbarui: \"%s\"\n", adminMessage.c_str());
+          }
+        } else if (strcmp(action, "absen") == 0 && newMsg.length() > 0) {
+          if (newMsg != lastDisplayedScan) {
+            showBigText(newMsg);
+            lastDisplayedScan = newMsg;
+          }
+          statusHoldUntil = millis() + 1800;
+          Serial.printf("[SERVER] Tampilan presensi: \"%s\"\n", newMsg.c_str());
+        }
+      }
+    }
 
-      if (enrollSlot > 0 && enrollSlot <= 300) {
-        Serial.printf("[SERVER CMD] Perintah pendaftaran jari dari Admin SIAKAD! Slot #%d (Mhs #%d)\n", enrollSlot, mhsId);
-        bool ok = enrollFingerprint(enrollSlot);
-        if (ok) {
-          // Lapor balik ke server denanyar
-          String doneAction = "enroll_done&finger_id=" + String(enrollSlot) + "&mahasiswa_id=" + String(mhsId);
-          syncWithServerDenanyar(doneAction.c_str(), 0);
+    // 2. Jika server mengirimkan antrean perintah khusus (JSON format "cmd":"ENROLL:slot:mhs_id")
+    int cIdx = responseLine.indexOf("\"cmd\":\"");
+    if (cIdx >= 0) {
+      int start = cIdx + 7;
+      int end = responseLine.indexOf("\"", start);
+      if (end > start) {
+        String cmdData = responseLine.substring(start, end);
+        cmdData.trim();
+
+        if (cmdData.startsWith("ENROLL:")) {
+          String enrollParams = cmdData.substring(7);
+          int sep = enrollParams.indexOf(':');
+          int enrollSlot = (sep > 0) ? enrollParams.substring(0, sep).toInt() : enrollParams.toInt();
+          int mhsId = (sep > 0) ? enrollParams.substring(sep + 1).toInt() : 0;
+
+          if (enrollSlot > 0) {
+            Serial.printf("[SERVER CMD] Perintah pendaftaran jari dari Admin SIAKAD! ID #%d (Ref #%d)\n", enrollSlot, mhsId);
+            bool ok = enrollFingerprint(enrollSlot);
+            if (ok) {
+              if (lastEnrolledTemplateHex.length() >= 1024) {
+                uploadTemplateToServer(enrollSlot, mhsId, lastEnrolledTemplateHex);
+              } else {
+                String doneAction = "enroll_done&finger_id=" + String(enrollSlot) + "&mahasiswa_id=" + String(mhsId);
+                syncWithServerDenanyar(doneAction.c_str(), 0);
+              }
+            }
+          }
+        } else if (cmdData.startsWith("DEL:")) {
+          int delSlot = cmdData.substring(4).toInt();
+          if (delSlot > 0) {
+            Serial.printf("[SERVER CMD] Menghapus cache sidik jari ID #%d...\n", delSlot);
+            if (delSlot <= 300) finger.deleteModel(delSlot);
+            fpPrefs.remove(("s" + String(delSlot)).c_str());
+            fpTplPrefs.remove(("t" + String(delSlot)).c_str());
+            String doneAction = "del_done&finger_id=" + String(delSlot);
+            syncWithServerDenanyar(doneAction.c_str(), 0);
+          }
         }
       }
     }
@@ -187,7 +506,14 @@ void syncWithServerDenanyar(const char* action, int fingerId) {
 // KONTROL LAN: KONEKSI OTOMATIS SAAT DICOLOK
 // ==========================================
 void checkLanConnection() {
-  if (!w5500Ok) return;
+  if (!w5500Ok) {
+    if (Ethernet.hardwareStatus() != EthernetNoHardware) {
+      w5500Ok = true;
+      Serial.println("\n[LAN] Modul W5500 terdeteksi aktif!");
+    } else {
+      return;
+    }
+  }
 
   bool physicalLink = (Ethernet.linkStatus() == LinkON);
 
@@ -253,10 +579,10 @@ String urlDecode(String str) {
 // PENDAFTARAN SIDIK JARI BARU (ENROLL)
 // ==========================================
 bool enrollFingerprint(int id) {
-  if (!fpOk || id <= 0 || id > 300) return false;
-  Serial.printf("\n[ENROLL] Memulai pendaftaran sidik jari untuk Slot ID #%d...\n", id);
+  if (!fpOk || id <= 0) return false;
+  Serial.printf("\n[ENROLL] Memulai pendaftaran sidik jari untuk ID #%d...\n", id);
   finger.LEDcontrol(true);
-  delay(60);
+  beepBuzzer(80, 1);
   showBigText("TEMPEL 1");
 
   // Langkah 1: Tempelkan jari pertama (timeout 12 detik)
@@ -265,7 +591,8 @@ bool enrollFingerprint(int id) {
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     if (millis() - start > 12000) {
-      finger.LEDcontrol(false);
+      setSensorStandby();
+      beepBuzzer(200, 1);
       showBigText("TIMEOUT");
       delay(1500);
       showBigText(adminMessage);
@@ -276,7 +603,8 @@ bool enrollFingerprint(int id) {
 
   p = finger.image2Tz(1);
   if (p != FINGERPRINT_OK) {
-    finger.LEDcontrol(false);
+    setSensorStandby();
+    beepBuzzer(200, 1);
     showBigText("GAGAL 1");
     delay(1500);
     showBigText(adminMessage);
@@ -284,6 +612,7 @@ bool enrollFingerprint(int id) {
   }
 
   // Langkah 2: Angkat jari
+  beepBuzzer(45, 1);
   showBigText("ANGKAT");
   delay(1000);
   while (finger.getImage() != FINGERPRINT_NOFINGER) {
@@ -291,13 +620,15 @@ bool enrollFingerprint(int id) {
   }
 
   // Langkah 3: Tempelkan jari yang sama sekali lagi untuk konfirmasi
+  beepBuzzer(45, 1);
   showBigText("TEMPEL 2");
   start = millis();
   p = -1;
   while (p != FINGERPRINT_OK) {
     p = finger.getImage();
     if (millis() - start > 12000) {
-      finger.LEDcontrol(false);
+      setSensorStandby();
+      beepBuzzer(200, 1);
       showBigText("TIMEOUT");
       delay(1500);
       showBigText(adminMessage);
@@ -308,7 +639,8 @@ bool enrollFingerprint(int id) {
 
   p = finger.image2Tz(2);
   if (p != FINGERPRINT_OK) {
-    finger.LEDcontrol(false);
+    setSensorStandby();
+    beepBuzzer(200, 1);
     showBigText("GAGAL 2");
     delay(1500);
     showBigText(adminMessage);
@@ -318,24 +650,27 @@ bool enrollFingerprint(int id) {
   // Langkah 4: Cocokkan kedua foto sidik
   p = finger.createModel();
   if (p != FINGERPRINT_OK) {
-    finger.LEDcontrol(false);
+    setSensorStandby();
+    beepBuzzer(200, 1);
     showBigText("BEDA JARI");
     delay(1500);
     showBigText(adminMessage);
     return false;
   }
 
-  // Langkah 5: Simpan ke slot memori modul AS608
-  p = finger.storeModel(id);
-  finger.LEDcontrol(false);
-  if (p == FINGERPRINT_OK) {
-    Serial.printf(" -> SUKSES! Sidik jari berhasil disimpan ke Slot ID #%d.\n", id);
+  // Langkah 5: Ekstrak data jari dari RAM sensor untuk dikirim ke Server (TANPA simpan di sensor!)
+  lastEnrolledTemplateHex = extractTemplateHexFromBuffer();
+  setSensorStandby();
+  if (lastEnrolledTemplateHex.length() >= 1024) {
+    Serial.printf(" -> SUKSES! Pola jari ID #%d diekstrak dari RAM untuk dikirim ke Server (%d chars HEX).\n", id, lastEnrolledTemplateHex.length());
+    beepBuzzer(45, 2);
     showBigText("ID #" + String(id) + " OK");
     delay(2000);
     showBigText(adminMessage);
     return true;
   } else {
-    showBigText("GAGAL SIMPAN");
+    beepBuzzer(200, 1);
+    showBigText("GAGAL BACA");
     delay(1500);
     showBigText(adminMessage);
     return false;
@@ -444,8 +779,16 @@ void handleAdminWebServer() {
 }
 
 void setup() {
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
   Serial.begin(115200);
   delay(1000);
+  fpPrefs.begin("fp_names", false);
+  fpTplPrefs.begin("fp_tpl", false);
+  String curS1 = fpPrefs.getString("s1", "");
+  if (curS1.length() == 0 || curS1 == "RIZAL") {
+    fpPrefs.putString("s1", "A. RIZAL KHABIBI YUNANTA");
+  }
   Serial.println("\n\n========================================");
   Serial.println("  SISTEM ABSENSI POE - ESP32 DENANYAR");
   Serial.println("  Tampilan 1 Baris Huruf Besar (0.91\" OLED)");
@@ -482,8 +825,10 @@ void setup() {
     fpOk = true;
     Serial.println(" -> Sensor Sidik Jari AS608 TERHUBUNG & OK!");
     finger.getParameters();
-    Serial.printf("    - Kapasitas Template: %d\n", finger.capacity);
-    finger.LEDcontrol(false); // Standby: matikan lampu biru sampai disentuh
+    finger.emptyDatabase(); // Kosongkan memori internal sensor! Sensor murni hanya pembaca (0 penyimpanan lokal)
+    fpTplPrefs.clear();
+    Serial.println("    - Mode Murni Pembaca (Stateless): Memori Sensor Dikosongkan (0 data disimpan di sensor)");
+    setSensorStandby(); // Langsung matikan lampu biru saat standby!
   } else {
     Serial.println(" -> Sensor AS608 TIDAK merespon.");
   }
@@ -499,9 +844,14 @@ void setup() {
   SPI.begin(PIN_W5500_SCK, PIN_W5500_MISO, PIN_W5500_MOSI, PIN_W5500_CS);
   Ethernet.init(PIN_W5500_CS);
 
-  if (Ethernet.hardwareStatus() != EthernetNoHardware) {
+  // Inisialisasi hardware Ethernet controller
+  Ethernet.begin(mac, staticIp);
+  SPI.begin(PIN_W5500_SCK, PIN_W5500_MISO, PIN_W5500_MOSI, PIN_W5500_CS);
+
+  auto hw = Ethernet.hardwareStatus();
+  if (hw != EthernetNoHardware) {
     w5500Ok = true;
-    Serial.println(" -> Modul W5500 Terdeteksi OK!");
+    Serial.printf(" -> Modul W5500 Terdeteksi OK! (Tipe: %d)\n", (int)hw);
   } else {
     Serial.println(" -> Modul W5500 Tidak Terdeteksi.");
   }
@@ -509,8 +859,12 @@ void setup() {
   // Cek apakah LAN sudah dicolok dari awal
   checkLanConnection();
 
+  // Pastikan sensor dalam mode standby (lampu mati)
+  setSensorStandby();
+
   // Tampilkan layar standby 1 baris besar
   showBigText(adminMessage);
+  beepBuzzer(45, 1);
 
   Serial.println("\n========================================");
   Serial.println("Setup Selesai! Layar siap dalam mode 1 baris.");
@@ -518,6 +872,8 @@ void setup() {
 }
 
 bool fingerHolding = false;
+bool tchArmed = false;
+unsigned long tchLowSince = 0;
 unsigned long lastFpCheck = 0;
 unsigned long lastLanPoll = 0;
 unsigned long lastHeartbeat = 0;
@@ -534,58 +890,89 @@ void loop() {
   // 2. Layani Web Server Kontrol Admin jika ada request
   handleAdminWebServer();
 
-  // 3. Mode Standby Sentuh (Pin TCH / GPIO 4)
+  // 3. Sensor Sidik Jari (Mode Standby Lampu Mati + Anti-Pantulan TCH + Buzzer Hening)
   int touch = digitalRead(PIN_FP_TCH);
 
-  if (fpOk && touch == HIGH) {
-    if (!fingerHolding) {
-      fingerHolding = true;
-      Serial.println("\n[FP] Sentuhan terdeteksi (TCH=HIGH)! Menyalakan lampu & membaca sidik...");
-      finger.LEDcontrol(true); // Nyalakan lampu biru sebelum memotret
-      delay(60);
-      showBigText("MEMBACA...");
+  // Arming: TCH harus stabil LOW minimal 300ms setelah masa cooldown lampu mati selesai
+  if (touch == LOW) {
+    if (tchLowSince == 0) tchLowSince = now;
+    if (now >= ledOffCooldownUntil && (now - tchLowSince >= 300)) {
+      tchArmed = true;
+    }
+    if (fingerHolding && now >= statusHoldUntil) {
+      fingerHolding = false;
+      Serial.println("[FP] Jari diangkat. Kembali ke teks standby.");
+      showBigText(adminMessage);
+    }
+  } else {
+    tchLowSince = 0;
+  }
 
+  if (fpOk && touch == HIGH && tchArmed && !fingerHolding && now >= ledOffCooldownUntil) {
+    unsigned long tHighStart = millis();
+    while (digitalRead(PIN_FP_TCH) == HIGH && millis() - tHighStart < 100) delay(1);
+    unsigned long duration = millis() - tHighStart;
+
+    if (duration >= 80) {
+      tchArmed = false;
+      fingerHolding = true;
+      finger.LEDcontrol(true); // Nyalakan lampu biru saat disentuh
+      delay(50);
+
+      // Cek apakah benar-benar ada jari di kaca sensor TANPA bunyi dulu
       uint8_t p = FINGERPRINT_NOFINGER;
       unsigned long tStart = millis();
-      while (p != FINGERPRINT_OK && (millis() - tStart < 1500)) {
+      while (p != FINGERPRINT_OK && (millis() - tStart < 900) && (digitalRead(PIN_FP_TCH) == HIGH)) {
         p = finger.getImage();
-        delay(40);
+        if (p == FINGERPRINT_OK) break;
+        delay(35);
       }
 
       if (p == FINGERPRINT_OK) {
-        p = finger.image2Tz();
-        if (p == FINGERPRINT_OK) {
-          p = finger.fingerSearch();
-          if (p == FINGERPRINT_OK) {
-            lastScannedID = finger.fingerID;
-            Serial.printf(" -> COCOK! Teridentifikasi ID #%d (Akurasi: %d)\n",
-                          finger.fingerID, finger.confidence);
-            showBigText("ID #" + String(finger.fingerID) + " OK");
+        Serial.println("\n[FP] Sentuhan & jari nyata terdeteksi! Membaca sidik...");
+        showBigText("MEMBACA...");
+        p = finger.image2Tz(1);
+        setSensorStandby(); // Matikan lampu biru segera setelah foto sidik diambil
 
-            // Otomatis kirim data absensi ke server denanyar jika LAN aktif
+        if (p == FINGERPRINT_OK) {
+          uint16_t matchScore = 0;
+          int matchedId = matchFingerAgainstServer(matchScore);
+          if (matchedId > 0) {
+            finger.fingerID = matchedId;
+            finger.confidence = matchScore;
+            lastScannedID = matchedId;
+            String namaSantri = getSlotName(matchedId);
+            String teksSukses = (namaSantri.length() > 0)
+                                  ? ("SUKSES " + namaSantri)
+                                  : ("SUKSES #" + String(matchedId));
+            Serial.printf(" -> COCOK DARI SERVER! Teridentifikasi ID #%d (%s, Akurasi: %d)\n",
+                          matchedId, teksSukses.c_str(), matchScore);
+            lastDisplayedScan = teksSukses;
+            beepBuzzer(45, 2);
+            showBigText(teksSukses);
+            statusHoldUntil = millis() + 1800;
+
             if (lanConnected) {
-              syncWithServerDenanyar("absen", finger.fingerID);
+              syncWithServerDenanyar("absen", matchedId);
             }
           } else {
-            Serial.println(" -> Foto sidik sukses, tetapi BELUM TERDAFTAR di sensor.");
-            showBigText("JARI OK!");
+            Serial.println(" -> Foto sidik sukses, tetapi BELUM TERDAFTAR di server.");
+            beepBuzzer(150, 1);
+            showBigText("TDK TERDAFTAR");
+            statusHoldUntil = millis() + 1500;
           }
         } else {
           Serial.println(" -> Gagal konversi citra sidik.");
+          beepBuzzer(150, 1);
           showBigText("ULANGI");
+          statusHoldUntil = millis() + 1200;
         }
       } else {
-        Serial.println(" -> Gagal memotret sidik jari (timeout).");
-        showBigText("TEMPEL RATA");
+        // Hanya tersentuh sekilas / noise tanpa jari di kaca: matikan lampu kembali TANPA bunyi
+        setSensorStandby();
+        fingerHolding = false;
       }
-
-      finger.LEDcontrol(false); // Matikan kembali lampu biru setelah selesai potret
     }
-  } else if (touch == LOW && fingerHolding) {
-    fingerHolding = false;
-    Serial.println("[FP] Jari diangkat (TCH=LOW). Kembali ke standby.");
-    finger.LEDcontrol(false);
-    showBigText(adminMessage);
   }
 
   // 4. Heartbeat berkala & sinkronisasi perintah cloud server setiap 5 detik
@@ -595,10 +982,11 @@ void loop() {
       Ethernet.maintain(); // Perpanjang sewa DHCP jika ada
       syncWithServerDenanyar("ping", 0); // Cek apakah admin SIAKAD mengirim instruksi baru
     }
-    Serial.printf("[HEARTBEAT] Up: %lu s | FP: %s | TCH: %s | LAN: %s | IP: %s | Pesan: %s\n",
+    Serial.printf("[HEARTBEAT] Up: %lu s | FP: %s | TCH: %s | W5500: %s | LAN: %s | IP: %s | Pesan: %s\n",
                   now / 1000,
                   fpOk ? "OK" : "ERR",
-                  touch == HIGH ? "HIGH" : "LOW",
+                  digitalRead(PIN_FP_TCH) == HIGH ? "HIGH" : "LOW",
+                  w5500Ok ? "OK" : "ERR",
                   lanConnected ? "LINK ON" : "LINK OFF",
                   lanConnected ? Ethernet.localIP().toString().c_str() : "-",
                   adminMessage.c_str());
